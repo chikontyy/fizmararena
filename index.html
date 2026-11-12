@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ФизМат Арена — Интерактивная Образовательная Игра</title>
+    <!-- Подключаем Tailwind CSS для адаптивной верстки -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Подключаем шрифты Inter и JetBrains Mono для формул и кода -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Подключаем FontAwesome для иконок -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Подключаем Tone.js для синтезированных звуковых эффектов без внешних файлов -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+    <style>
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-violet: #9d4edd;
+            --neon-pink: #ff007f;
+            --bg-dark: #090a0f;
+            --panel-bg: rgba(17, 22, 37, 0.85);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(157, 78, 221, 0.12), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.12), transparent 25%);
+            color: #e2e8f0;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        .font-mono-math {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Киберпанк рамки и свечение */
+        .cyber-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 243, 255, 0.25);
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.6), inset 0 0 15px rgba(0, 243, 255, 0.05);
+        }
+
+        .cyber-btn {
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .cyber-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 0 18px rgba(0, 243, 255, 0.45);
+        }
+
+        .cyber-btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        /* Анимация тряски экрана при получении урона */
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0); }
+            20% { transform: translate(-8px, 4px); }
+            40% { transform: translate(8px, -4px); }
+            60% { transform: translate(-6px, -4px); }
+            80% { transform: translate(6px, 4px); }
+        }
+
+        .shake-effect {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Пульсация неонового текста */
+        .neon-text-cyan {
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.7), 0 0 20px rgba(0, 243, 255, 0.4);
+        }
+
+        .neon-text-violet {
+            text-shadow: 0 0 10px rgba(157, 78, 221, 0.8), 0 0 20px rgba(157, 78, 221, 0.5);
+        }
+
+        /* Кастомный скроллбар */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--neon-cyan);
+        }
+
+        /* Полоска таймера */
+        .timer-bar-fill {
+            transition: width 0.1s linear, background-color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
+    <header class="w-full border-b border-cyan-500/20 bg-slate-950/85 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="app.returnToMenu()">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <i class="fa-solid fa-atom text-white text-xl animate-spin" style="animation-duration: 12s;"></i>
+                </div>
+                <div>
+                    <h1 class="font-black text-lg sm:text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-400">
+                        ФИЗМАТ АРЕНА
+                    </h1>
+                    <p class="text-[10px] sm:text-xs text-slate-400 tracking-widest uppercase">Академия Точных Наук</p>
+                </div>
+            </div>
+
+            <!-- Статистика игрока (XP, Уровень, Освоенные темы) -->
+            <div class="flex items-center gap-3 sm:gap-5">
+                <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
+                    <i class="fa-solid fa-medal text-yellow-400"></i>
+                    <span class="text-slate-400">Побед:</span>
+                    <span id="player-wins-count" class="font-mono-math font-bold text-white">0</span>
+                </div>
+
+                <div class="flex flex-col items-end">
+                    <div class="flex items-center gap-2 text-xs font-semibold text-cyan-400">
+                        <span class="hidden sm:inline">РАНГ: <span id="player-rank-name">Кадет</span></span>
+                        <span class="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/40">LVL <span id="player-level">1</span></span>
+                    </div>
+                    <div class="w-24 sm:w-32 h-1.5 bg-slate-800 rounded-full mt-1 overflow-hidden">
+                        <div id="player-xp-bar" class="h-full bg-gradient-to-r from-cyan-400 to-purple-500 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Кнопка звука -->
+                <button id="sound-toggle-btn" onclick="app.toggleSound()" class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700 hover:border-cyan-400 text-cyan-400 transition" title="Включить/выключить звук">
+                    <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ОСНОВНОЙ КОНТЕЙНЕР ПРИЛОЖЕНИЯ -->
+    <main id="app-container" class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 flex flex-col justify-center">
+
+        <!-- ========================================== -->
+        <!-- ЭКРАН 1: ГЛАВНОЕ МЕНЮ И ВЫБОР ТЕМ          -->
+        <!-- ========================================== -->
+        <section id="screen-menu" class="space-y-6 animate-fade-in">
+            <div class="text-center max-w-3xl mx-auto space-y-2">
+                <h2 class="text-3xl sm:text-5xl font-black text-white leading-tight">
+                    Сражайся силой <span class="text-cyan-400 neon-text-cyan">Интеллекта</span>
+                </h2>
+                <p class="text-slate-400 text-sm sm:text-base">
+                    Выбери класс, уровень сложности и раздел науки. Решай задачи на время, побеждай боссов и собирай конспект формул!
+                </p>
+            </div>
+
+            <!-- Панель фильтров: Выбор класса и сложности -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl mx-auto">
+                <!-- Переключатель класса -->
+                <div class="cyber-panel p-1.5 rounded-2xl flex gap-1.5">
+                    <button id="grade-7-9" onclick="app.setGrade('7-9')" class="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25">
+                        <i class="fa-solid fa-graduation-cap mr-1.5"></i> 7–9 классы (ОГЭ / База)
+                    </button>
+                    <button id="grade-10-11" onclick="app.setGrade('10-11')" class="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition text-slate-300 hover:bg-slate-800">
+                        <i class="fa-solid fa-atom mr-1.5 text-purple-400"></i> 10–11 классы (ЕГЭ / Профиль)
+                    </button>
+                </div>
+
+                <!-- Переключатель сложности -->
+                <div class="cyber-panel p-1.5 rounded-2xl flex gap-1.5">
+                    <button id="diff-basic" onclick="app.setDifficulty('basic')" class="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25">
+                        <i class="fa-solid fa-shield-halved mr-1.5"></i> Базовый уровень
+                    </button>
+                    <button id="diff-olymp" onclick="app.setDifficulty('olymp')" class="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition text-slate-300 hover:bg-slate-800">
+                        <i class="fa-solid fa-fire mr-1.5 text-orange-400"></i> Олимпиадный / Профиль
+                    </button>
+                </div>
+            </div>
+
+            <!-- Карточка Микс-режима для выбранной параллели -->
+            <div onclick="app.startBattle('mix')" class="cyber-panel rounded-2xl p-5 sm:p-6 cursor-pointer border-pink-500/40 hover:border-pink-400 transition group relative overflow-hidden bg-gradient-to-r from-slate-900/95 via-purple-950/40 to-slate-900/95">
+                <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-pink-500/10 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                    <div class="space-y-1">
+                        <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md bg-pink-500/20 text-pink-300 text-xs font-bold">
+                            <i class="fa-solid fa-infinity"></i> КОМПЛЕКСНЫЙ ТУРНИР • +50% XP
+                        </div>
+                        <h3 id="mix-banner-title" class="text-xl sm:text-2xl font-black text-white group-hover:text-pink-400 transition">
+                            ФизМат Микс (7–9 классы): Все темы сразу
+                        </h3>
+                        <p class="text-xs sm:text-sm text-slate-300">
+                            Случайные задачи по всем разделам физики и математики выбранной параллели. Идеально для тренировки перед контрольной или экзаменом!
+                        </p>
+                    </div>
+                    <div class="shrink-0">
+                        <span class="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold text-sm shadow-lg shadow-pink-500/30 group-hover:scale-105 transition">
+                            НАЧАТЬ МИКС <i class="fa-solid fa-play ml-2"></i>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Две колонки: ФИЗИКА и МАТЕМАТИКА -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Колонка Физики -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between px-1">
+                        <h3 class="text-lg font-black text-cyan-400 tracking-wide flex items-center gap-2">
+                            <i class="fa-solid fa-bolt"></i> ФИЗИКА
+                        </h3>
+                        <span id="physics-grade-label" class="text-xs text-slate-400 font-mono-math">7–9 классы</span>
+                    </div>
+                    <div id="physics-topics-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <!-- Карточки тем по физике рендерятся динамически -->
+                    </div>
+                </div>
+
+                <!-- Колонка Математики -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between px-1">
+                        <h3 class="text-lg font-black text-purple-400 tracking-wide flex items-center gap-2">
+                            <i class="fa-solid fa-square-root-variable"></i> МАТЕМАТИКА
+                        </h3>
+                        <span id="math-grade-label" class="text-xs text-slate-400 font-mono-math">7–9 классы</span>
+                    </div>
+                    <div id="math-topics-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <!-- Карточки тем по математике рендерятся динамически -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- ЭКРАН 2: АКТИВНАЯ АРЕНА (БОЙ)              -->
+        <!-- ========================================== -->
+        <section id="screen-battle" class="hidden space-y-4 max-w-5xl mx-auto w-full">
+                            <p class="text-xs sm:text-sm text-slate-300 max-w-lg">
+                                Случайные задачи из всех разделов физики и математики. Идеально для комплексной тренировки мозгов перед экзаменом!
+                            </p>
+                        </div>
+                        <div class="shrink-0">
+                            <span class="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold text-sm shadow-lg shadow-pink-500/30 group-hover:scale-105 transition">
+                                ЗАПУСТИТЬ МИКС <i class="fa-solid fa-play ml-2"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- ЭКРАН 2: АКТИВНАЯ АРЕНА (БОЙ)              -->
+        <!-- ========================================== -->
+        <section id="screen-battle" class="hidden space-y-4">
+            
+            <!-- Верхняя панель статуса боя (HP Игрока vs HP Босса) -->
+            <div class="cyber-panel rounded-2xl p-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    
+                    <!-- Здоровье Игрока -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1">
+                            <span class="text-cyan-400"><i class="fa-solid fa-user-astronaut mr-1"></i> ВАШ ЩИТ</span>
+                            <span id="player-hp-text" class="font-mono-math text-white">100 / 100</span>
+                        </div>
+                        <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-cyan-500/30">
+                            <div id="player-hp-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-300" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Центр: Комбо и Таймер -->
+                    <div class="flex items-center justify-center gap-4">
+                        <div class="text-center px-3 py-1 rounded-xl bg-slate-900 border border-slate-700">
+                            <div class="text-[10px] text-slate-400 uppercase">Комбо</div>
+                            <div id="combo-display" class="font-mono-math font-black text-lg text-yellow-400">x1.0</div>
+                        </div>
+                        <div class="text-center px-4 py-1 rounded-xl bg-slate-900 border border-slate-700 min-w-[90px]">
+                            <div class="text-[10px] text-slate-400 uppercase">Таймер</div>
+                            <div id="timer-text" class="font-mono-math font-black text-lg text-cyan-400">30.0с</div>
+                        </div>
+                        <button onclick="app.returnToMenu()" class="p-2.5 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 transition" title="Сдаться и выйти в меню">
+                            <i class="fa-solid fa-flag"></i>
+                        </button>
+                    </div>
+
+                    <!-- Здоровье Босса -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1">
+                            <span id="boss-name-display" class="text-pink-400"><i class="fa-solid fa-robot mr-1"></i> КИНЕМАТРОН-9</span>
+                            <span id="boss-hp-text" class="font-mono-math text-white">100 / 100</span>
+                        </div>
+                        <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-pink-500/30">
+                            <div id="boss-hp-bar" class="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-300" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Полоска прогресса таймера -->
+                <div class="w-full h-1.5 bg-slate-900 rounded-full mt-3 overflow-hidden">
+                    <div id="timer-bar" class="timer-bar-fill h-full bg-cyan-400" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <!-- Визуальная Арена (HTML5 Canvas для лазеров, кораблей и частиц) -->
+            <div class="relative w-full h-44 sm:h-56 rounded-2xl overflow-hidden border border-cyan-500/30 bg-slate-950 shadow-inner">
+                <canvas id="battle-canvas" class="w-full h-full block"></canvas>
+                <!-- Всплывающий текст урона / статуса -->
+                <div id="battle-banner" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+                    <span id="battle-banner-text" class="text-2xl sm:text-4xl font-black tracking-wider uppercase px-6 py-2 rounded-xl bg-slate-950/80 border border-cyan-400 text-cyan-300 shadow-2xl">
+                        КРИТИЧЕСКИЙ УДАР!
+                    </span>
+                </div>
+            </div>
+
+            <!-- Карточка с задачей и вариантами ответа -->
+            <div class="cyber-panel rounded-2xl p-5 sm:p-7 space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span id="question-topic-badge" class="px-3 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-bold uppercase tracking-wider">
+                        Физика • Кинематика
+                    </span>
+                    <span id="question-formula-hint" class="text-xs font-mono-math text-slate-400">
+                        Подсказка: v = S / t
+                    </span>
+                </div>
+
+                <!-- Текст задачи -->
+                <div id="question-text" class="text-base sm:text-xl font-semibold text-white leading-relaxed">
+                    Загрузка квантового модуля задачи...
+                </div>
+
+                <!-- 4 Варианта ответа -->
+                <div id="options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <!-- Кнопки генерируются через JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- МОДАЛЬНОЕ ОКНО: РАЗБОР РЕШЕНИЯ (ОБУЧЕНИЕ)  -->
+        <!-- ========================================== -->
+        <div id="explanation-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <div class="cyber-panel max-w-lg w-full rounded-2xl p-6 space-y-4 border-2 shadow-2xl transform transition-all" id="explanation-card">
+                <div class="flex items-center gap-3">
+                    <div id="exp-icon-box" class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0">
+                        <i id="exp-icon" class="fa-solid fa-check"></i>
+                    </div>
+                    <div>
+                        <h3 id="exp-title" class="text-xl font-black text-white">Верный расчет!</h3>
+                        <p id="exp-subtitle" class="text-xs text-slate-300">Плазменный залп нанес 25 урона</p>
+                    </div>
+                </div>
+
+                <!-- Блок с формулой и пошаговым объяснением -->
+                <div class="bg-slate-900/90 rounded-xl p-4 border border-slate-700/80 space-y-2.5">
+                    <div class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-book-open"></i> Ключевая формула и разбор:
+                    </div>
+                    <div id="exp-formula" class="font-mono-math text-sm sm:text-base text-yellow-300 bg-slate-950 px-3 py-2 rounded-lg border border-slate-800">
+                        F = m · a
+                    </div>
+                    <div id="exp-text" class="text-sm text-slate-300 leading-relaxed">
+                        Пошаговое решение задачи...
+                    </div>
+                </div>
+
+                <button onclick="app.nextTurn()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/25 transition">
+                    Далее <i class="fa-solid fa-forward ml-1.5"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- ЭКРАН 3: ИТОГИ БОЯ (ПОБЕДА / ПОРАЖЕНИЕ)    -->
+        <!-- ========================================== -->
+        <section id="screen-result" class="hidden max-w-2xl mx-auto w-full cyber-panel rounded-2xl p-6 sm:p-8 text-center space-y-6">
+            <div id="result-badge" class="w-20 h-20 mx-auto rounded-2xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-4xl text-cyan-400 shadow-lg shadow-cyan-500/20">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+
+            <div>
+                <h2 id="result-title" class="text-3xl sm:text-4xl font-black text-white mb-2">БОСС ПОВЕРЖЕН!</h2>
+                <p id="result-desc" class="text-slate-400 text-sm">Вы успешно защитили сектор и освоили ключевые формулы.</p>
+            </div>
+
+            <!-- Статистика раунда -->
+            <div class="grid grid-cols-3 gap-3">
+                <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                    <div class="text-xs text-slate-400">Точность</div>
+                    <div id="stat-accuracy" class="font-mono-math text-xl font-bold text-cyan-400">100%</div>
+                </div>
+                <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                    <div class="text-xs text-slate-400">Макс. Комбо</div>
+                    <div id="stat-combo" class="font-mono-math text-xl font-bold text-yellow-400">x2.5</div>
+                </div>
+                <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                    <div class="text-xs text-slate-400">Получено XP</div>
+                    <div id="stat-xp" class="font-mono-math text-xl font-bold text-purple-400">+150</div>
+                </div>
+            </div>
+
+            <!-- Список изученных формул за бой -->
+            <div class="text-left bg-slate-900/90 rounded-xl p-4 border border-slate-800 space-y-2 max-h-52 overflow-y-auto">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Конспект изученных формул за бой:</div>
+                <ul id="learned-formulas-list" class="space-y-1.5 text-xs sm:text-sm font-mono-math text-cyan-300">
+                    <!-- Заполняется динамически -->
+                </ul>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                <button onclick="app.restartCurrentBattle()" class="flex-1 py-3.5 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-600 transition">
+                    <i class="fa-solid fa-rotate-right mr-2"></i> Сразиться снова
+                </button>
+                <button onclick="app.returnToMenu()" class="flex-1 py-3.5 px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-sm shadow-lg shadow-purple-500/25 transition">
+                    <i class="fa-solid fa-grid-2 mr-2"></i> К выбору тем
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ПОДВАЛ -->
+    <footer class="text-center py-4 text-xs text-slate-500 border-t border-slate-900">
+        ФизМат Арена • Интерактивный тренажер по физике и математике для 7–11 классов
+    </footer>
+
+    <!-- ========================================== -->
+    <!-- КАТАЛОГ ТЕМ, БАЗА ЗАДАЧ И ИГРОВОЙ ДВИЖОК   -->
+    <!-- ========================================== -->
+    <script>
+        /**
+         * КАТАЛОГ ТЕМ ДЛЯ 7–9 И 10–11 КЛАССОВ
+         */
+        const TOPICS_CATALOG = {
+            '7-9': {
+                physics: [
+                    { id: 'p79_kinematics', title: 'Кинематика', desc: 'Равномерное движение, скорость, путь, средняя скорость', boss: 'ВЕКТОР-7', color: '#00f3ff', icon: 'fa-gauge-high' },
+                    { id: 'p79_dynamics', title: 'Динамика и силы', desc: 'Законы Ньютона, сила тяжести, упругости и трения', boss: 'НЬЮТОН-МЕХ', color: '#38bdf8', icon: 'fa-weight-hanging' },
+                    { id: 'p79_pressure', title: 'Давление и Архимед', desc: 'Давление твердых тел, жидкостей, закон Архимеда', boss: 'БАТИСКАФ-Х', color: '#0ea5e9', icon: 'fa-water' },
+                    { id: 'p79_energy', title: 'Работа и энергия', desc: 'Механическая работа, мощность, КПД, рычаги, энергия', boss: 'КИНЕТИК-9', color: '#22d3ee', icon: 'fa-gears' },
+                    { id: 'p79_thermal', title: 'Тепловые явления', desc: 'Нагревание, удельная теплоемкость, плавление и парообразование', boss: 'ПИРО-ЯДРО', color: '#fb923c', icon: 'fa-temperature-high' },
+                    { id: 'p79_electricity', title: 'Электричество', desc: 'Закон Ома, последовательное и параллельное соединение, работа тока', boss: 'ВОЛЬТ-СТРАЖ', color: '#facc15', icon: 'fa-bolt' },
+                    { id: 'p79_optics', title: 'Оптика', desc: 'Отражение и преломление света, плоские зеркала и линзы', boss: 'ПРИЗМА-01', color: '#a855f7', icon: 'fa-eye' }
+                ],
+                math: [
+                    { id: 'm79_equations', title: 'Уравнения', desc: 'Линейные, квадратные уравнения, теорема Виета и системы', boss: 'ДИСКРИМИНАНТ', color: '#c084fc', icon: 'fa-equals' },
+                    { id: 'm79_inequalities', title: 'Неравенства и модули', desc: 'Линейные и квадратные неравенства, метод интервалов, модули', boss: 'ИНТЕРВАЛ-Z', color: '#e879f9', icon: 'fa-not-equal' },
+                    { id: 'm79_functions', title: 'Функции и графики', desc: 'Линейная функция, парабола, гипербола, нули и вершины', boss: 'ПАРАБОЛОИД', color: '#818cf8', icon: 'fa-chart-line' },
+                    { id: 'm79_progressions', title: 'Прогрессии', desc: 'Арифметическая и геометрическая прогрессии, формулы суммы', boss: 'РЯД-БЕСКОНЕЧНОСТЬ', color: '#a78bfa', icon: 'fa-arrow-trend-up' },
+                    { id: 'm79_planimetry', title: 'Планиметрия', desc: 'Треугольники, теорема Пифагора, окружности, площади фигур', boss: 'ПИФАГОР-3000', color: '#34d399', icon: 'fa-shapes' },
+                    { id: 'm79_vectors', title: 'Векторы и координаты', desc: 'Координаты вектора, длина, скалярное произведение на плоскости', boss: 'КООРДИНАТОР', color: '#2dd4bf', icon: 'fa-compass-drafting' },
+                    { id: 'm79_probability', title: 'Комбинаторика и шанс', desc: 'Классическая вероятность, перестановки, статистика', boss: 'КВАНТ-КУБИК', color: '#f472b6', icon: 'fa-dice' }
+                ]
+            },
+            '10-11': {
+                physics: [
+                    { id: 'p1011_kinematics', title: 'Баллистика и вращение', desc: 'Бросок под углом к горизонту, центростремительное ускорение', boss: 'ОРБИТА-11', color: '#00f3ff', icon: 'fa-satellite' },
+                    { id: 'p1011_conservation', title: 'Законы сохранения', desc: 'Импульс, реактивное движение, полная механическая энергия', boss: 'ИМПУЛЬС-ОМЕГА', color: '#38bdf8', icon: 'fa-meteor' },
+                    { id: 'p1011_mkt', title: 'МКТ и Термодинамика', desc: 'Уравнение Менделеева-Клапейрона, изопроцессы, цикл Карно', boss: 'ЭНТРОПИЯ-Х', color: '#fb923c', icon: 'fa-fire-flame-curved' },
+                    { id: 'p1011_electro', title: 'Электростатика и ЭДС', desc: 'Закон Кулона, напряженность, конденсаторы, закон Ома для полной цепи', boss: 'КУЛОН-ТИТАН', color: '#facc15', icon: 'fa-car-battery' },
+                    { id: 'p1011_magnetism', title: 'Магнетизм и индукция', desc: 'Сила Ампера и Лоренца, магнитный поток, правило Ленца', boss: 'ТЕСЛА-МАГНЕТРОН', color: '#60a5fa', icon: 'fa-magnet' },
+                    { id: 'p1011_waves', title: 'Колебания и волны', desc: 'Математический и пружинный маятники, формула Томсона, волны', boss: 'РЕЗОНАТОР-V', color: '#a855f7', icon: 'fa-wave-square' },
+                    { id: 'p1011_quantum', title: 'Квантовая и ядерная', desc: 'Фотоэффект, уравнение Эйнштейна, радиоактивный полураспад', boss: 'ФОТОН-СИНГУЛЯР', color: '#f43f5e', icon: 'fa-radiation' }
+                ],
+                math: [
+                    { id: 'm1011_trig', title: 'Тригонометрия', desc: 'Формулы приведения, двойной угол, тригонометрические уравнения', boss: 'СИНУСОИД-АРХ', color: '#c084fc', icon: 'fa-circle-notch' },
+                    { id: 'm1011_logs', title: 'Логарифмы и степени', desc: 'Свойства логарифмов, показательные и логарифмические уравнения', boss: 'ЭКСПОНЕНТА-9', color: '#e879f9', icon: 'fa-superscript' },
+                    { id: 'm1011_derivative', title: 'Производная', desc: 'Физический и геометрический смысл, экстремумы, касательная', boss: 'ДИФФЕРЕНЦИАЛ', color: '#818cf8', icon: 'fa-chart-area' },
+                    { id: 'm1011_integral', title: 'Первообразная и интеграл', desc: 'Таблица первообразных, формула Ньютона-Лейбница, площадь кривой', boss: 'ИНТЕГРАТОР-0', color: '#a78bfa', icon: 'fa-infinity' },
+                    { id: 'm1011_stereometry', title: 'Стереометрия', desc: 'Призмы, пирамиды, цилиндры, конусы, шары, объемы и площади', boss: 'ТЕССЕРАКТ', color: '#34d399', icon: 'fa-cube' },
+                    { id: 'm1011_params', title: 'Параметры и неравенства', desc: 'Сложные рациональные неравенства, модули и задачи с параметром', boss: 'ПАРАМЕТР-БОСС', color: '#fb7185', icon: 'fa-sliders' },
+                    { id: 'm1011_prob_adv', title: 'Теория вероятностей', desc: 'Независимые события, формула Бернулли, условная вероятность', boss: 'МАТРИЦА-ШАНС', color: '#2dd4bf', icon: 'fa-dice-d20' }
+                ]
+            }
+        };
+
+        // Вспомогательная функция случайного целого числа в диапазоне [min, max]
+        const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+        // Генератор 4 уникальных вариантов ответа вокруг правильного числа
+        function makeNumericOptions(correctVal, unit = '', decimals = 0) {
+            const fmt = (n) => {
+                const fixed = decimals > 0 ? Number(n.toFixed(decimals)) : Math.round(n);
+                return unit ? `${fixed} ${unit}` : `${fixed}`;
+            };
+            const correctStr = fmt(correctVal);
+            const set = new Set([correctStr]);
+
+            const candidates = [
+                correctVal * 2,
+                correctVal / 2,
+                correctVal + (decimals > 0 ? 1.5 : randInt(2, 10)),
+                Math.max(0.1, correctVal - (decimals > 0 ? 1.2 : randInt(1, 8))),
+                correctVal * 10,
+                correctVal + 10
+            ];
+
+            for (let c of candidates) {
+                if (set.size >= 4) break;
+                const s = fmt(c);
+                if (s !== correctStr && !s.startsWith('-0')) set.add(s);
+            }
+            while (set.size < 4) {
+                set.add(fmt(correctVal + randInt(11, 35)));
+            }
+
+            const arr = Array.from(set);
+            // Перемешиваем
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return { options: arr, correct: arr.indexOf(correctStr) };
+        }
+
+        /**
+         * РАСШИРЕННАЯ БАЗА ЗАДАЧ (Статические + Динамически генерируемые шаблоны)
+         * Обеспечивает 3–5 уникальных задач на КАЖДУЮ из 28 тем!
+         */
+        function getQuestionTemplates() {
+            const list = [];
+
+            // =========================================================
+            // 7–9 КЛАССЫ: ФИЗИКА
+            // =========================================================
+
+            // 1. p79_kinematics
+            list.push(
+                () => {
+                    const vKmh = [36, 54, 72, 90, 108][randInt(0, 4)];
+                    const t = randInt(10, 40);
+                    const vMs = vKmh / 3.6;
+                    const s = vMs * t;
+                    const { options, correct } = makeNumericOptions(s, 'м');
+                    return {
+                        grade: '7-9', topic: 'p79_kinematics', topicLabel: 'Физика 7–9 • Кинематика', difficulty: 'basic',
+                        hint: 'v (м/с) = v (км/ч) / 3.6; S = v · t',
+                        question: `Электропоезд движется равномерно со скоростью ${vKmh} км/ч. Какой путь он пройдет за ${t} с?`,
+                        options, correct,
+                        formula: 'S = v · t',
+                        explanation: `Переведем скорость в СИ: ${vKmh} / 3.6 = ${vMs} м/с. Путь равен S = ${vMs} м/с · ${t} с = ${s} м.`
+                    };
+                },
+                () => ({
+                    grade: '7-9', topic: 'p79_kinematics', topicLabel: 'Физика 7–9 • Кинематика', difficulty: 'basic',
+                    hint: 'v_ср = S_общ / t_общ',
+                    question: 'Велосипедист проехал первые 100 м за 20 с, а следующие 200 м за 30 с. Чему равна его средняя скорость на всем пути?',
+                    options: ['6 м/с', '5.8 м/с', '7.5 м/с', '5 м/с'], correct: 0,
+                    formula: 'v_ср = (S₁ + S₂) / (t₁ + t₂)',
+                    explanation: 'Весь путь S = 100 + 200 = 300 м. Всё время t = 20 + 30 = 50 с. Средняя скорость v_ср = 300 / 50 = 6 м/с.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'p79_kinematics', topicLabel: 'Физика 7–9 • Кинематика', difficulty: 'olymp',
+                    hint: 'v_ср = 2·v₁·v₂ / (v₁ + v₂)',
+                    question: 'Первую половину пути автомобиль ехал со скоростью 60 км/ч, а вторую половину — со скоростью 40 км/ч. Найдите среднюю скорость автомобиля на всем пути.',
+                    options: ['50 км/ч', '48 км/ч', '45 км/ч', '52 км/ч'], correct: 1,
+                    formula: 'v_ср = (2 · v₁ · v₂) / (v₁ + v₂)',
+                    explanation: 'При равных участках пути нельзя брать среднее арифметическое! v_ср = (2 · 60 · 40) / (60 + 40) = 4800 / 100 = 48 км/ч.'
+                })
+            );
+
+            // 2. p79_dynamics
+            list.push(
+                () => {
+                    const m = randInt(2, 12);
+                    const a = randInt(2, 8);
+                    const f = m * a;
+                    const { options, correct } = makeNumericOptions(f, 'Н');
+                    return {
+                        grade: '7-9', topic: 'p79_dynamics', topicLabel: 'Физика 7–9 • Динамика', difficulty: 'basic',
+                        hint: 'F = m · a',
+                        question: `Тележка массой ${m} кг движется с ускорением ${a} м/с². Чему равна равнодействующая сила, действующая на неё?`,
+                        options, correct,
+                        formula: 'F = m · a (Второй закон Ньютона)',
+                        explanation: `По второму закону Ньютона F = m · a = ${m} кг · ${a} м/с² = ${f} Н.`
+                    };
+                },
+                () => ({
+                    grade: '7-9', topic: 'p79_dynamics', topicLabel: 'Физика 7–9 • Динамика', difficulty: 'basic',
+                    hint: 'F_тр = μ · m · g',
+                    question: 'Брусок массой 5 кг скользит по горизонтальному столу с коэффициентом трения μ = 0.2. Чему равна сила трения скольжения? (g = 10 м/с²)',
+                    options: ['10 Н', '25 Н', '1 Н', '50 Н'], correct: 0,
+                    formula: 'F_тр = μ · N = μ · m · g',
+                    explanation: 'Сила реакции опоры N = m·g = 5 · 10 = 50 Н. Сила трения F_тр = 0.2 · 50 Н = 10 Н.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'p79_dynamics', topicLabel: 'Физика 7–9 • Динамика', difficulty: 'olymp',
+                    hint: 'F_упр = k · Δx',
+                    question: 'Под действием силы 20 Н пружина удлинилась на 4 см. Какова жесткость этой пружины?',
+                    options: ['500 Н/м', '5 Н/м', '80 Н/м', '200 Н/м'], correct: 0,
+                    formula: 'k = F_упр / Δx (Закон Гука)',
+                    explanation: 'Переводим удлинение в метры: Δx = 4 см = 0.04 м. Жесткость k = 20 Н / 0.04 м = 500 Н/м.'
+                })
+            );
+
+            // 3. p79_pressure
+            list.push(
+                () => {
+                    const h = randInt(2, 15);
+                    const p = 1000 * 10 * h / 1000; // кПа
+                    const { options, correct } = makeNumericOptions(p, 'кПа');
+                    return {
+                        grade: '7-9', topic: 'p79_pressure', topicLabel: 'Физика 7–9 • Давление', difficulty: 'basic',
+                        hint: 'p = ρ · g · h',
+                        question: `Определите гидростатическое давление воды (ρ = 1000 кг/м³) на глубине ${h} м. (g = 10 м/с²)`,
+                        options, correct,
+                        formula: 'p = ρ · g · h',
+                        explanation: `p = 1000 кг/м³ · 10 м/с² · ${h} м = ${p * 1000} Па = ${p} кПа.`
+                    };
+                },
+                () => ({
+                    grade: '7-9', topic: 'p79_pressure', topicLabel: 'Физика 7–9 • Сила Архимеда', difficulty: 'basic',
+                    hint: 'F_А = ρ_ж · g · V_погр',
+                    question: 'Тело объемом 0.02 м³ полностью погружено в воду (ρ = 1000 кг/м³). Чему равна выталкивающая сила Архимеда? (g = 10 м/с²)',
+                    options: ['200 Н', '20 Н', '2000 Н', '500 Н'], correct: 0,
+                    formula: 'F_А = ρ_ж · g · V_погр',
+                    explanation: 'F_А = 1000 кг/м³ · 10 м/с² · 0.02 м³ = 200 Н.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'p79_pressure', topicLabel: 'Физика 7–9 • Гидравлика', difficulty: 'olymp',
+                    hint: 'F₂ / F₁ = S₂ / S₁',
+                    question: 'Площади поршней гидравлического пресса отличаются в 15 раз. Какую силу нужно приложить к малому поршню, чтобы поднять груз весом 3000 Н на большом поршне?',
+                    options: ['200 Н', '45000 Н', '150 Н', '300 Н'], correct: 0,
+                    formula: 'F₁ / S₁ = F₂ / S₂ (Закон Паскаля)',
+                    explanation: 'Выигрыш в силе равен отношению площадей поршней: F₁ = F₂ / 15 = 3000 Н / 15 = 200 Н.'
+                })
+            );
+
+            // 4. p79_energy
+            list.push(
+                () => {
+                    const a = randInt(400, 1200);
+                    const t = randInt(4, 10);
+                    const n = a / t;
+                    const { options, correct } = makeNumericOptions(n, 'Вт');
+                    return {
+                        grade: '7-9', topic: 'p79_energy', topicLabel: 'Физика 7–9 • Мощность', difficulty: 'basic',
+                        hint: 'N = A / t',
+                        question: `Подъемный механизм совершил работу ${a} Дж за ${t} с. Какую мощность он развил?`,
+                        options, correct,
+                        formula: 'N = A / t',
+                        explanation: `Мощность равна отношению работы ко времени: N = ${a} Дж / ${t} с = ${n} Вт.`
+                    };
+                },
+                () => ({
+                    grade: '7-9', topic: 'p79_energy', topicLabel: 'Физика 7–9 • Энергия', difficulty: 'basic',
+                    hint: 'E_п = m · g · h',
+                    question: 'Какой потенциальной энергией относительно Земли обладает груз массой 4 кг, поднятый на высоту 5 м? (g = 10 м/с²)',
+                    options: ['200 Дж', '20 Дж', '90 Дж', '100 Дж'], correct: 0,
+                    formula: 'E_п = m · g · h',
+                    explanation: 'E_п = 4 кг · 10 м/с² · 5 м = 200 Дж.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'p79_energy', topicLabel: 'Физика 7–9 • Статика', difficulty: 'olymp',
+                    hint: 'F₁ · l₁ = F₂ · l₂',
+                    question: 'К левому плечу рычага длиной 40 см приложена сила 15 Н. Какую силу нужно приложить к правому плечу длиной 12 см, чтобы рычаг был в равновесии?',
+                    options: ['50 Н', '4.5 Н', '45 Н', '60 Н'], correct: 0,
+                    formula: 'M₁ = M₂  ⇔  F₁ · l₁ = F₂ · l₂',
+                    explanation: 'Из правила моментов: 15 Н · 40 см = F₂ · 12 см  =>  F₂ = 600 / 12 = 50 Н.'
+                })
+            );
+
+            // 5. p79_thermal
+            list.push(
+                () => {
+                    const m = randInt(2, 5);
+                    const dt = randInt(10, 30);
+                    const q = 4200 * m * dt / 1000; // кДж
+                    const { options, correct } = makeNumericOptions(q, 'кДж');
+                    return {
+                        grade: '7-9', topic: 'p79_thermal', topicLabel: 'Физика 7–9 • Тепловые явления', difficulty: 'basic',
+                        hint: 'Q = c · m · Δt (c_воды = 4200 Дж/(кг·°C))',
+                        question: `Сколько теплоты потребуется для нагревания ${m} кг воды на ${dt} °C? Удельная теплоемкость воды 4200 Дж/(кг·°C).`,
+                        options, correct,
+                        formula: 'Q = c · m · Δt',
+                        explanation: `Q = 4200 · ${m} · ${dt} = ${q * 1000} Дж = ${q} кДж.`
+                    };
+                },
+                () => ({
+                    grade: '7-9', topic: 'p79_thermal', topicLabel: 'Физика 7–9 • Плавление', difficulty: 'basic',
+                    hint: 'Q = λ · m',
+                    question: 'Удельная теплота плавления льда λ = 330 кДж/кг. Сколько теплоты нужно, чтобы расплавить 2 кг льда, взятого при температуре 0 °C?',
+                    options: ['660 кДж', '165 кДж', '330 кДж', '990 кДж'], correct: 0,
+                    formula: 'Q = λ · m',
+                    explanation: 'Так как лед уже при температуре плавления (0 °C), вся энергия идет на фазовый переход: Q = 330 кДж/кг · 2 кг = 660 кДж.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'p79_thermal', topicLabel: 'Физика 7–9 • Тепловой баланс', difficulty: 'olymp',
+                    hint: 'm₁(t - t₁) = m₂(t₂ - t)',
+                    question: 'Смешали 2 кг воды при температуре 20 °C и 3 кг воды при температуре 70 °C. Какая температура установится в сосуде? Потерями пренебречь.',
+                    options: ['50 °C', '45 °C', '55 °C', '40 °C'], correct: 0,
+                    formula: 't_см = (m₁t₁ + m₂t₂) / (m₁ + m₂)',
+                    explanation: 'Для одинаковых жидкостей: t_см = (2·20 + 3·70) / (2 + 3) = (40 + 210) / 5 = 250 / 5 = 50 °C.'
+                })
+            );
+
+            // 6. p79_electricity
+            list.push(
+                () => {
+                    const r = randInt(4, 20);
+                    const i = randInt(2, 6);
+                    const u = i * r;
+                    const { options, correct } = makeNumericOptions(u, 'В');
+                    return {
+                        grade: '7-9', topic: 'p79_electricity', topicLabel: 'Физика 7–9 • Электричество', difficulty: 'basic',
+                        hint: 'U = I · R',
+                        question: `Через резистор сопротивлением ${r} Ом проходит ток силой ${i} А. Каково напряжение на резисторе?`,
+                        options, correct,
+                        formula: 'U = I · R (Закон Ома)',
+                        explanation: `По закону Ома напряжение U = I · R = ${i} А · ${r} Ом = ${u} В.`
+                    };
+                },
+                () => ({
+                    grade: '7-9', topic: 'p79_electricity', topicLabel: 'Физика 7–9 • Соединение цепей', difficulty: 'basic',
+                    hint: 'R_парал = (R₁·R₂) / (R₁+R₂)',
+                    question: 'Два резистора сопротивлением 6 Ом и 3 Ом соединены параллельно. Чему равно их общее сопротивление?',
+                    options: ['2 Ом', '9 Ом', '4.5 Ом', '18 Ом'], correct: 0,
+                    formula: 'R_общ = (R₁ · R₂) / (R₁ + R₂)',
+                    explanation: 'R_общ = (6 · 3) / (6 + 3) = 18 / 9 = 2 Ом.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'p79_electricity', topicLabel: 'Физика 7–9 • Работа тока', difficulty: 'olymp',
+                    hint: 'A = (U² / R) · t',
+                    question: 'Сколько теплоты выделится за 10 секунд в резисторе сопротивлением 20 Ом, подключенном к напряжению 10 В?',
+                    options: ['50 Дж', '200 Дж', '500 Дж', '5 Дж'], correct: 0,
+                    formula: 'Q = (U² / R) · t',
+                    explanation: 'Q = (10² / 20) · 10 = (100 / 20) · 10 = 5 · 10 = 50 Дж.'
+                })
+            );
+
+            // 7. p79_optics
+            list.push(
+                () => {
+                    const alpha = randInt(15, 65);
+                    const total = alpha * 2;
+                    const { options, correct } = makeNumericOptions(total, '°');
+                    return {
+                        grade: '7-9', topic: 'p79_optics', topicLabel: 'Физика 7–9 • Оптика', difficulty: 'basic',
+                        hint: 'Угол падения равен углу отражения',
+                        question: `Угол падения светового луча на плоское зеркало равен ${alpha}°. Чему равен угол между падающим и отраженным лучами?`,
+                        options, correct,
+                        formula: 'α = β;  ∠ = α + β = 2α',
+                        explanation: `Угол отражения равен углу падения (${alpha}°). Угол между лучами равен ${alpha}° + ${alpha}° = ${total}°.`
+                    };
+                },
+                () => ({
+                    grade: '7-9', topic: 'p79_optics', topicLabel: 'Физика 7–9 • Линзы', difficulty: 'basic',
+                    hint: 'D = 1 / F',
+                    question: 'Фокусное расстояние собирающей линзы равно 25 см. Чему равна её оптическая сила?',
+                    options: ['4 дптр', '0.04 дптр', '25 дптр', '2.5 дптр'], correct: 0,
+                    formula: 'D = 1 / F (F в метрах)',
+                    explanation: 'Переводим фокусное расстояние в метры: F = 25 см = 0.25 м. Оптическая сила D = 1 / 0.25 = 4 дптр.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'p79_optics', topicLabel: 'Физика 7–9 • Плоское зеркало', difficulty: 'olymp',
+                    hint: 'Расстояние до изображения равно расстоянию до зеркала',
+                    question: 'Ученик стоял на расстоянии 2 м от плоского зеркала, а затем отошел от него еще на 1.5 м. Каким стало расстояние между учеником и его изображением?',
+                    options: ['7 м', '3.5 м', '5 м', '4 м'], correct: 0,
+                    formula: 'L = 2 · (d₁ + Δd)',
+                    explanation: 'Новое расстояние от ученика до зеркала: 2 + 1.5 = 3.5 м. Изображение находится на таком же расстоянии за зеркалом: 3.5 + 3.5 = 7 м.'
+                })
+            );
+
+            // =========================================================
+            // 7–9 КЛАССЫ: МАТЕМАТИКА
+            // =========================================================
+
+            // 8. m79_equations
+            list.push(
+                () => {
+                    const x1 = randInt(2, 8);
+                    const x2 = randInt(1, 7);
+                    const b = -(x1 + x2);
+                    const c = x1 * x2;
+                    const { options, correct } = makeNumericOptions(x1 + x2);
+                    return {
+                        grade: '7-9', topic: 'm79_equations', topicLabel: 'Математика 7–9 • Уравнения', difficulty: 'basic',
+                        hint: 'Теорема Виета: x₁ + x₂ = -b',
+                        question: `Найдите сумму корней квадратного уравнения: x² ${b}x + ${c} = 0`,
+                        options, correct,
+                        formula: 'x₁ + x₂ = -b / a',
+                        explanation: `Корни существуют (D ≥ 0). По теореме Виета сумма корней равна -(${b}) = ${x1 + x2}.`
+                    };
+                },
+                () => ({
+                    grade: '7-9', topic: 'm79_equations', topicLabel: 'Математика 7–9 • Системы', difficulty: 'basic',
+                    hint: 'Сложите оба уравнения системы',
+                    question: 'Решите систему уравнений: x + y = 14 и x - y = 4. Чему равно значение x?',
+                    options: ['9', '5', '10', '7'], correct: 0,
+                    formula: '(x + y) + (x - y) = 2x',
+                    explanation: 'Сложим уравнения почленно: 2x = 14 + 4 = 18  =>  x = 9 (при этом y = 5).'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_equations', topicLabel: 'Математика 7–9 • Теорема Виета', difficulty: 'olymp',
+                    hint: 'x₁² + x₂² = (x₁ + x₂)² - 2x₁x₂',
+                    question: 'Не решая уравнение x² - 5x + 3 = 0, найдите сумму квадратов его корней (x₁² + x₂²).',
+                    options: ['19', '25', '22', '31'], correct: 0,
+                    formula: 'x₁² + x₂² = (x₁ + x₂)² - 2·x₁·x₂',
+                    explanation: 'По теореме Виета x₁ + x₂ = 5, x₁·x₂ = 3. Тогда x₁² + x₂² = 5² - 2·3 = 25 - 6 = 19.'
+                })
+            );
+
+            // 9. m79_inequalities
+            list.push(
+                () => ({
+                    grade: '7-9', topic: 'm79_inequalities', topicLabel: 'Математика 7–9 • Неравенства', difficulty: 'basic',
+                    hint: 'При делении на отрицательное число знак меняется',
+                    question: 'Найдите наибольшее целое решение неравенства: -3x > -15',
+                    options: ['4', '5', '6', '-4'], correct: 0,
+                    formula: '-3x > -15  ⇔  x < 5',
+                    explanation: 'Разделим обе части на -3, поменяв знак неравенства: x < 5. Наибольшее целое число, строго меньшее 5 — это 4.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_inequalities', topicLabel: 'Математика 7–9 • Метод интервалов', difficulty: 'basic',
+                    hint: '(x - a)(x - b) < 0  =>  x ∈ (a; b)',
+                    question: 'Сколько целых решений имеет неравенство: (x - 2)(x - 7) < 0?',
+                    options: ['4', '6', '5', '3'], correct: 0,
+                    formula: 'x ∈ (2; 7)',
+                    explanation: 'Решением строгого неравенства является открытый интервал (2; 7). Целые числа внутри него: 3, 4, 5, 6 — всего 4 числа.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_inequalities', topicLabel: 'Математика 7–9 • Модули', difficulty: 'olymp',
+                    hint: '|f(x)| ≤ a  ⇔  -a ≤ f(x) ≤ a',
+                    question: 'Найдите сумму всех целых решений неравенства: |x - 3| ≤ 2',
+                    options: ['15', '12', '9', '6'], correct: 0,
+                    formula: '-2 ≤ x - 3 ≤ 2  ⇔  1 ≤ x ≤ 5',
+                    explanation: 'Решения неравенства: x ∈ [1; 5]. Целые решения: 1, 2, 3, 4, 5. Их сумма: 1 + 2 + 3 + 4 + 5 = 15.'
+                })
+            );
+
+            // 10. m79_functions
+            list.push(
+                () => ({
+                    grade: '7-9', topic: 'm79_functions', topicLabel: 'Математика 7–9 • Функции', difficulty: 'basic',
+                    hint: 'x_в = -b / (2a)',
+                    question: 'Найдите абсциссу (координату x) вершины параболы: y = x² - 8x + 15',
+                    options: ['4', '-4', '8', '-1'], correct: 0,
+                    formula: 'x₀ = -b / (2a)',
+                    explanation: 'Для параболы a = 1, b = -8. Координата вершины x₀ = -(-8) / (2·1) = 4.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_functions', topicLabel: 'Математика 7–9 • Линейная функция', difficulty: 'basic',
+                    hint: 'Параллельные прямые имеют одинаковый коэффициент k',
+                    question: 'График функции y = kx + 5 параллелен прямой y = -3x + 1. Чему равен коэффициент k?',
+                    options: ['-3', '3', '5', '1'], correct: 0,
+                    formula: 'y₁ || y₂  ⇔  k₁ = k₂',
+                    explanation: 'Условие параллельности прямых: равенство их угловых коэффициентов. Следовательно, k = -3.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_functions', topicLabel: 'Математика 7–9 • Гипербола', difficulty: 'olymp',
+                    hint: 'Подставьте координаты точки в y = k / x',
+                    question: 'Гипербола y = k / x проходит через точку A(-4; 3.5). Найдите значение k.',
+                    options: ['-14', '14', '-7', '-0.875'], correct: 0,
+                    formula: 'k = x · y',
+                    explanation: 'Подставим координаты точки A: 3.5 = k / (-4)  =>  k = 3.5 · (-4) = -14.'
+                })
+            );
+
+            // 11. m79_progressions
+            list.push(
+                () => {
+                    const a1 = randInt(2, 9);
+                    const d = randInt(2, 6);
+                    const n = randInt(5, 9);
+                    const an = a1 + d * (n - 1);
+                    const { options, correct } = makeNumericOptions(an);
+                    return {
+                        grade: '7-9', topic: 'm79_progressions', topicLabel: 'Математика 7–9 • Прогрессии', difficulty: 'basic',
+                        hint: 'a_n = a₁ + d·(n - 1)',
+                        question: `В арифметической прогрессии a₁ = ${a1}, разность d = ${d}. Найдите ${n}-й член этой прогрессии.`,
+                        options, correct,
+                        formula: 'a_n = a₁ + d · (n - 1)',
+                        explanation: `a_${n} = ${a1} + ${d} · (${n} - 1) = ${a1} + ${d * (n - 1)} = ${an}.`
+                    };
+                },
+                () => ({
+                    grade: '7-9', topic: 'm79_progressions', topicLabel: 'Математика 7–9 • Геометрическая прогрессия', difficulty: 'basic',
+                    hint: 'b_n = b₁ · q^(n-1)',
+                    question: 'Первый член геометрической прогрессии равен 3, знаменатель q = 2. Найдите 5-й член прогрессии.',
+                    options: ['48', '24', '96', '30'], correct: 0,
+                    formula: 'b₅ = b₁ · q⁴',
+                    explanation: 'b₅ = 3 · 2⁴ = 3 · 16 = 48.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_progressions', topicLabel: 'Математика 7–9 • Сумма прогрессии', difficulty: 'olymp',
+                    hint: 'S_n = ((a₁ + a_n) / 2) · n',
+                    question: 'Найдите сумму всех натуральных чисел от 1 до 50 включительно.',
+                    options: ['1275', '1250', '2550', '1300'], correct: 0,
+                    formula: 'S_n = ((a₁ + a_n) · n) / 2',
+                    explanation: 'Это арифметическая прогрессия с a₁ = 1, a₅₀ = 50, n = 50. S₅₀ = ((1 + 50) · 50) / 2 = 51 · 25 = 1275.'
+                })
+            );
+
+            // 12. m79_planimetry
+            list.push(
+                () => ({
+                    grade: '7-9', topic: 'm79_planimetry', topicLabel: 'Математика 7–9 • Планиметрия', difficulty: 'basic',
+                    hint: 'S_ромба = (d₁ · d₂) / 2',
+                    question: 'Диагонали ромба равны 10 см и 14 см. Найдите площадь этого ромба.',
+                    options: ['70 см²', '140 см²', '48 см²', '35 см²'], correct: 0,
+                    formula: 'S = (d₁ · d₂) / 2',
+                    explanation: 'Площадь ромба равна половине произведения его диагоналей: S = (10 · 14) / 2 = 70 см².'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_planimetry', topicLabel: 'Математика 7–9 • Окружность', difficulty: 'basic',
+                    hint: 'Вписанный угол равен половине центрального',
+                    question: 'Вписанный угол опирается на дугу окружности, градусная мера которой равна 116°. Чему равен этот вписанный угол?',
+                    options: ['58°', '116°', '232°', '64°'], correct: 0,
+                    formula: '∠_впис = ∪ / 2',
+                    explanation: 'Вписанный угол измеряется половиной дуги, на которую он опирается: 116° / 2 = 58°.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_planimetry', topicLabel: 'Математика 7–9 • Трапеция', difficulty: 'olymp',
+                    hint: 'S = m · h (m — средняя линия)',
+                    question: 'Средняя линия трапеции равна 11 см, а высота равна 6 см. Найдите площадь трапеции.',
+                    options: ['66 см²', '33 см²', '132 см²', '17 см²'], correct: 0,
+                    formula: 'S = ((a + b) / 2) · h = m · h',
+                    explanation: 'Площадь трапеции равна произведению её средней линии на высоту: S = 11 · 6 = 66 см².'
+                })
+            );
+
+            // 13. m79_vectors
+            list.push(
+                () => ({
+                    grade: '7-9', topic: 'm79_vectors', topicLabel: 'Математика 7–9 • Векторы', difficulty: 'basic',
+                    hint: '|a| = √(x² + y²)',
+                    question: 'Найдите длину (модуль) вектора a(5; -12).',
+                    options: ['13', '7', '17', '169'], correct: 0,
+                    formula: '|a| = √(x² + y²)',
+                    explanation: '|a| = √(5² + (-12)²) = √(25 + 144) = √169 = 13.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_vectors', topicLabel: 'Математика 7–9 • Координаты', difficulty: 'basic',
+                    hint: 'AB = (x_B - x_A; y_B - y_A)',
+                    question: 'Точка A имеет координаты (2; -3), точка B(6; 5). Найдите координаты середины отрезка AB.',
+                    options: ['(4; 1)', '(4; 8)', '(2; 4)', '(8; 2)'], correct: 0,
+                    formula: 'M = ((x₁ + x₂)/2; (y₁ + y₂)/2)',
+                    explanation: 'x_M = (2 + 6)/2 = 4; y_M = (-3 + 5)/2 = 1. Координаты середины: (4; 1).'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_vectors', topicLabel: 'Математика 7–9 • Скалярное произведение', difficulty: 'olymp',
+                    hint: 'a · b = x₁x₂ + y₁y₂',
+                    question: 'Вычислите скалярное произведение векторов a(4; -3) и b(2; 5).',
+                    options: ['-7', '23', '8', '-15'], correct: 0,
+                    formula: 'a · b = x₁·x₂ + y₁·y₂',
+                    explanation: 'a · b = 4·2 + (-3)·5 = 8 - 15 = -7.'
+                })
+            );
+
+            // 14. m79_probability
+            list.push(
+                () => ({
+                    grade: '7-9', topic: 'm79_probability', topicLabel: 'Математика 7–9 • Вероятность', difficulty: 'basic',
+                    hint: 'P = m / n',
+                    question: 'В коробке 14 синих, 11 красных и 25 зеленых ручек. Какова вероятность наугад вытащить красную ручку?',
+                    options: ['0.22', '0.11', '0.5', '0.28'], correct: 0,
+                    formula: 'P(A) = m / n',
+                    explanation: 'Всего ручек n = 14 + 11 + 25 = 50. Красных m = 11. Вероятность P = 11 / 50 = 22 / 100 = 0.22.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_probability', topicLabel: 'Математика 7–9 • Игральные кости', difficulty: 'basic',
+                    hint: 'Всего исходов при броске двух кубиков: 36',
+                    question: 'Бросают два игральных кубика. Какова вероятность того, что сумма выпавших очков равна 11?',
+                    options: ['1/18', '1/36', '1/12', '1/6'], correct: 0,
+                    formula: 'P = 2 / 36 = 1 / 18',
+                    explanation: 'Сумму 11 дают только 2 комбинации из 36: (5; 6) и (6; 5). Вероятность равна 2/36 = 1/18.'
+                }),
+                () => ({
+                    grade: '7-9', topic: 'm79_probability', topicLabel: 'Математика 7–9 • Комбинаторика', difficulty: 'olymp',
+                    hint: 'P_n = n!',
+                    question: 'Сколькими способами можно расставить 4 разные книги по физике и математике на одной полке?',
+                    options: ['24', '16', '12', '8'], correct: 0,
+                    formula: 'P₄ = 4! = 1 · 2 · 3 · 4',
+                    explanation: 'Число перестановок из 4 элементов равно 4! = 1 · 2 · 3 · 4 = 24.'
+                })
+            );
+
+            // =========================================================
+            // 10–11 КЛАССЫ: ФИЗИКА
+            // =========================================================
+
+            // 15. p1011_kinematics
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'p1011_kinematics', topicLabel: 'Физика 10–11 • Движение по окружности', difficulty: 'basic',
+                    hint: 'a_ц = v² / R',
+                    question: 'Спутник движется по круговой орбите со скоростью 8 км/с. Как изменится его центростремительное ускорение, если скорость уменьшить в 2 раза при том же радиусе орбиты?',
+                    options: ['Уменьшится в 4 раза', 'Уменьшится в 2 раза', 'Увеличится в 4 раза', 'Не изменится'], correct: 0,
+                    formula: 'a_ц = v² / R',
+                    explanation: 'Центростремительное ускорение пропорционально квадрату скорости (v²). При уменьшении скорости в 2 раза ускорение уменьшится в 2² = 4 раза.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_kinematics', topicLabel: 'Физика 10–11 • Баллистика', difficulty: 'basic',
+                    hint: 't_пол = (2 · v₀ · sinα) / g',
+                    question: 'Снаряд выпущен под углом 30° к горизонту со скоростью 40 м/с. Сколько времени он пробудет в полете? (g = 10 м/с²)',
+                    options: ['4 с', '2 с', '8 с', '3.5 с'], correct: 0,
+                    formula: 't_пол = (2 · v₀ · sinα) / g',
+                    explanation: 'Так как sin(30°) = 0.5, время полета t = (2 · 40 · 0.5) / 10 = 40 / 10 = 4 с.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_kinematics', topicLabel: 'Физика 10–11 • Дальность полета', difficulty: 'olymp',
+                    hint: 'L = (v₀² · sin(2α)) / g',
+                    question: 'Под каким углом к горизонту нужно бросить камень, чтобы дальность его полета была максимальной (при отсутствии сопротивления воздуха)?',
+                    options: ['45°', '30°', '60°', '90°'], correct: 0,
+                    formula: 'L_max при sin(2α) = 1  ⇒  2α = 90°',
+                    explanation: 'Из формулы дальности L = (v₀² · sin(2α)) / g максимум достигается при sin(2α) = 1, откуда α = 45°.'
+                })
+            );
+
+            // 16. p1011_conservation
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'p1011_conservation', topicLabel: 'Физика 10–11 • Законы сохранения', difficulty: 'basic',
+                    hint: 'm₁v₁ - m₂v₂ = (m₁ + m₂)u',
+                    question: 'Два пластилиновых шара массами 2 кг и 3 кг летят навстречу друг другу со скоростями 4 м/с и 1 м/с соответственно. Какова их скорость после неупругого столкновения?',
+                    options: ['1 м/с', '2.2 м/с', '5 м/с', '0.5 м/с'], correct: 0,
+                    formula: 'm₁v₁ - m₂v₂ = (m₁ + m₂)u',
+                    explanation: 'Выберем ось по направлению первого шара: 2·4 - 3·1 = (2 + 3)·u  ⇒  8 - 3 = 5u  ⇒  u = 1 м/с.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_conservation', topicLabel: 'Физика 10–11 • Энергия пружины', difficulty: 'basic',
+                    hint: 'E_упр = (k · x²) / 2',
+                    question: 'Пружину жесткостью 400 Н/м сжали на 5 см. Какой потенциальной энергией она обладает?',
+                    options: ['0.5 Дж', '5000 Дж', '1 Дж', '10 Дж'], correct: 0,
+                    formula: 'E_упр = (k · x²) / 2',
+                    explanation: 'Переведем сжатие в метры: x = 5 см = 0.05 м. Энергия E = (400 · 0.05²) / 2 = 200 · 0.0025 = 0.5 Дж.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_conservation', topicLabel: 'Физика 10–11 • Закон сохранения энергии', difficulty: 'olymp',
+                    hint: 'mgh = mv² / 2',
+                    question: 'С какой минимальной скоростью нужно бросить мяч вертикально вниз с высоты 15 м, чтобы после абсолютно упругого удара о пол он подпрыгнул на высоту 20 м? (g = 10 м/с²)',
+                    options: ['10 м/с', '20 м/с', '5 м/с', '14.1 м/с'], correct: 0,
+                    formula: 'mgh₁ + mv₀² / 2 = mgh₂',
+                    explanation: 'Из закона сохранения энергии: v₀² / 2 = g(h₂ - h₁) = 10 · (20 - 15) = 50  ⇒  v₀² = 100  ⇒  v₀ = 10 м/с.'
+                })
+            );
+
+            // 17. p1011_mkt
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'p1011_mkt', topicLabel: 'Физика 10–11 • МКТ и Газы', difficulty: 'basic',
+                    hint: 'p₁ / T₁ = p₂ / T₂ (Изохорный процесс)',
+                    question: 'В закрытом баллоне идеальный газ нагрели от 300 К до 450 К. Во сколько раз увеличилось давление газа?',
+                    options: ['В 1.5 раза', 'В 2 раза', 'В 3 раза', 'На 150 Па'], correct: 0,
+                    formula: 'p / T = const (Закон Шарля)',
+                    explanation: 'При постоянном объеме давление прямо пропорционально абсолютной температуре: p₂ / p₁ = T₂ / T₁ = 450 / 300 = 1.5.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_mkt', topicLabel: 'Физика 10–11 • Термодинамика', difficulty: 'basic',
+                    hint: 'Q = ΔU + A',
+                    question: 'Газу передали 500 Дж теплоты, при этом он совершил работу 200 Дж. Как изменилась внутренняя энергия газа?',
+                    options: ['Увеличилась на 300 Дж', 'Увеличилась на 700 Дж', 'Уменьшилась на 300 Дж', 'Не изменилась'], correct: 0,
+                    formula: 'ΔU = Q - A (Первый закон термодинамики)',
+                    explanation: 'По первому закону термодинамики ΔU = Q - A = 500 Дж - 200 Дж = +300 Дж.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_mkt', topicLabel: 'Физика 10–11 • Цикл Карно', difficulty: 'olymp',
+                    hint: 'η = (T_н - T_х) / T_н',
+                    question: 'Температура нагревателя идеальной тепловой машины Карно равна 600 К, а холодильника — 360 К. Чему равен КПД машины?',
+                    options: ['40%', '60%', '24%', '45%'], correct: 0,
+                    formula: 'η = 1 - (T_х / T_н)',
+                    explanation: 'η = (600 - 360) / 600 = 240 / 600 = 0.4 или 40%.'
+                })
+            );
+
+            // 18. p1011_electro
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'p1011_electro', topicLabel: 'Физика 10–11 • Электростатика', difficulty: 'basic',
+                    hint: 'F = k · |q₁·q₂| / r²',
+                    question: 'Как изменится сила кулоновского взаимодействия двух точечных зарядов, если расстояние между ними увеличить в 3 раза?',
+                    options: ['Уменьшится в 9 раз', 'Уменьшится в 3 раза', 'Увеличится в 9 раз', 'Уменьшится в 6 раз'], correct: 0,
+                    formula: 'F = k · |q₁·q₂| / r² (Закон Кулона)',
+                    explanation: 'Сила Кулона обратно пропорциональна квадрату расстояния (1/r²). При росте r в 3 раза сила уменьшится в 3² = 9 раз.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_electro', topicLabel: 'Физика 10–11 • Полная цепь', difficulty: 'basic',
+                    hint: 'I = ε / (R + r)',
+                    question: 'Источник тока с ЭДС 12 В и внутренним сопротивлением 1 Ом замкнут на внешний резистор сопротивлением 5 Ом. Найдите силу тока в цепи.',
+                    options: ['2 А', '2.4 А', '12 А', '0.5 А'], correct: 0,
+                    formula: 'I = ε / (R + r) (Закон Ома для полной цепи)',
+                    explanation: 'I = 12 В / (5 Ом + 1 Ом) = 12 / 6 = 2 А.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_electro', topicLabel: 'Физика 10–11 • Конденсаторы', difficulty: 'olymp',
+                    hint: 'C = (ε · ε₀ · S) / d',
+                    question: 'Заряженный плоский воздушный конденсатор отключили от батареи, а затем раздвинули его пластины в 2 раза. Как изменилась энергия конденсатора?',
+                    options: ['Увеличилась в 2 раза', 'Уменьшилась в 2 раза', 'Увеличилась в 4 раза', 'Не изменилась'], correct: 0,
+                    formula: 'W = q² / (2C);  C ~ 1 / d',
+                    explanation: 'Так как конденсатор отключен, заряд q = const. При увеличении d в 2 раза емкость C уменьшается в 2 раза. По формуле W = q²/(2C) энергия вырастет в 2 раза.'
+                })
+            );
+
+            // 19. p1011_magnetism
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'p1011_magnetism', topicLabel: 'Физика 10–11 • Магнетизм', difficulty: 'basic',
+                    hint: 'F_А = I · B · L · sinα',
+                    question: 'На проводник длиной 0.5 м с током 4 А, расположенный перпендикулярно линиям магнитной индукции, действует сила Ампера 0.6 Н. Чему равна индукция магнитного поля?',
+                    options: ['0.3 Тл', '1.2 Тл', '0.15 Тл', '3 Тл'], correct: 0,
+                    formula: 'B = F_А / (I · L)',
+                    explanation: 'Так как sin(90°) = 1, B = 0.6 Н / (4 А · 0.5 м) = 0.6 / 2 = 0.3 Тл.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_magnetism', topicLabel: 'Физика 10–11 • Сила Лоренца', difficulty: 'basic',
+                    hint: 'F_Л = q · v · B · sinα',
+                    question: 'Чему равна сила Лоренца, действующая на протон, движущийся вдоль линий индукции однородного магнитного поля со скоростью 10⁶ м/с?',
+                    options: ['0 Н', '1.6 · 10⁻¹³ Н', '1.6 · 10⁻¹⁹ Н', '10⁶ Н'], correct: 0,
+                    formula: 'F_Л = q · v · B · sin(0°) = 0',
+                    explanation: 'При движении заряда вдоль линий магнитной индукции угол α = 0°, а sin(0°) = 0. Сила Лоренца равна нулю!'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_magnetism', topicLabel: 'Физика 10–11 • Электромагнитная индукция', difficulty: 'olymp',
+                    hint: '|ε_i| = ΔΦ / Δt',
+                    question: 'Магнитный поток через замкнутый контур равномерно уменьшился с 0.8 Вб до 0.2 Вб за 0.03 с. Чему равен модуль ЭДС индукции в контуре?',
+                    options: ['20 В', '0.018 В', '6 В', '2 В'], correct: 0,
+                    formula: '|ε_i| = |ΔΦ| / Δt (Закон Фарадея)',
+                    explanation: '|ΔΦ| = |0.2 - 0.8| = 0.6 Вб. ЭДС индукции |ε_i| = 0.6 Вб / 0.03 с = 20 В.'
+                })
+            );
+
+            // 20. p1011_waves
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'p1011_waves', topicLabel: 'Физика 10–11 • Колебания', difficulty: 'basic',
+                    hint: 'T = 2π · √(l / g)',
+                    question: 'Как изменится период колебаний математического маятника, если длину его нити увеличить в 4 раза?',
+                    options: ['Увеличится в 2 раза', 'Увеличится в 4 раза', 'Уменьшится в 2 раза', 'Не изменится'], correct: 0,
+                    formula: 'T = 2π · √(l / g)',
+                    explanation: 'Период пропорционален корню квадратному из длины (√l). При росте длины в 4 раза период увеличится в √4 = 2 раза.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_waves', topicLabel: 'Физика 10–11 • Волны', difficulty: 'basic',
+                    hint: 'λ = c / ν',
+                    question: 'Радиостанция работает на частоте 100 МГц. Чему равна длина излучаемых радиоволн? (c = 3 · 10⁸ м/с)',
+                    options: ['3 м', '30 м', '0.3 м', '300 м'], correct: 0,
+                    formula: 'λ = c / ν',
+                    explanation: '100 МГц = 10⁸ Гц. Длина волны λ = (3 · 10⁸ м/с) / 10⁸ Гц = 3 м.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_waves', topicLabel: 'Физика 10–11 • Колебательный контур', difficulty: 'olymp',
+                    hint: 'T = 2π · √(L · C)',
+                    question: 'Индуктивность катушки в идеальном колебательном контуре увеличили в 9 раз, а емкость конденсатора уменьшили в 4 раза. Как изменился период электромагнитных колебаний?',
+                    options: ['Увеличился в 1.5 раза', 'Увеличился в 2.25 раза', 'Уменьшился в 1.5 раза', 'Увеличился в 6 раз'], correct: 0,
+                    formula: 'T = 2π · √(L · C) (Формула Томсона)',
+                    explanation: 'Под корнем произведение L·C изменилось в 9 / 4 раза. Период изменится в √(9/4) = 3/2 = 1.5 раза (увеличится).'
+                })
+            );
+
+            // 21. p1011_quantum
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'p1011_quantum', topicLabel: 'Физика 10–11 • Фотоэффект', difficulty: 'basic',
+                    hint: 'hν = A_вых + E_к',
+                    question: 'Энергия падающих на металл фотонов равна 4.5 эВ, а работа выхода электронов для этого металла составляет 2.7 эВ. Чему равна максимальная кинетическая энергия фотоэлектронов?',
+                    options: ['1.8 эВ', '7.2 эВ', '2.7 эВ', '1.6 эВ'], correct: 0,
+                    formula: 'E_к(max) = E_ф - A_вых (Уравнение Эйнштейна)',
+                    explanation: 'E_к(max) = 4.5 эВ - 2.7 эВ = 1.8 эВ.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_quantum', topicLabel: 'Физика 10–11 • Ядерная физика', difficulty: 'basic',
+                    hint: 'N = N₀ · 2^(-t / T)',
+                    question: 'Период полураспада радиоактивного изотопа равен 10 минутам. Какая доля исходных ядер останется нераспавшейся через 30 минут?',
+                    options: ['1/8 (12.5%)', '1/3 (33.3%)', '1/6 (16.7%)', '1/4 (25%)'], correct: 0,
+                    formula: 'N / N₀ = (1/2)^(t / T)',
+                    explanation: 'За 30 минут пройдет n = 30 / 10 = 3 периода полураспада. Останется (1/2)³ = 1/8 часть ядер.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'p1011_quantum', topicLabel: 'Физика 10–11 • Импульс фотона', difficulty: 'olymp',
+                    hint: 'p = E / c = h / λ',
+                    question: 'Во сколько раз импульс фотона фиолетового света (λ₁ = 400 нм) больше импульса фотона красного света (λ₂ = 760 нм)?',
+                    options: ['В 1.9 раза', 'В 0.53 раза', 'В 3.6 раза', 'Импульсы равны'], correct: 0,
+                    formula: 'p = h / λ',
+                    explanation: 'Импульс фотона обратно пропорционален длине волны: p₁ / p₂ = λ₂ / λ₁ = 760 / 400 = 1.9.'
+                })
+            );
+
+            // =========================================================
+            // 10–11 КЛАССЫ: МАТЕМАТИКА
+            // =========================================================
+
+            // 22. m1011_trig
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'm1011_trig', topicLabel: 'Математика 10–11 • Тригонометрия', difficulty: 'basic',
+                    hint: 'cos(2α) = cos²α - sin²α',
+                    question: 'Вычислите значение выражения: 8 · (cos²(15°) - sin²(15°))',
+                    options: ['4√3', '4', '8', '4√2'], correct: 0,
+                    formula: 'cos(2α) = cos²α - sin²α',
+                    explanation: 'В скобках косинус двойного угла: cos(2 · 15°) = cos(30°) = √3 / 2. Умножаем на 8: 8 · (√3 / 2) = 4√3.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_trig', topicLabel: 'Математика 10–11 • Тригонометрические уравнения', difficulty: 'basic',
+                    hint: 'sin(x) = 1/2  ⇒  x = (-1)^k · π/6 + πk',
+                    question: 'Найдите наименьший положительный корень уравнения sin(x) = √2 / 2 (ответ в градусах).',
+                    options: ['45°', '30°', '60°', '135°'], correct: 0,
+                    formula: 'sin(45°) = sin(π/4) = √2 / 2',
+                    explanation: 'На тригонометрической окружности значение √2/2 синус принимает при углах 45° и 135°. Наименьший положительный корень — 45°.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_trig', topicLabel: 'Математика 10–11 • Формулы приведения', difficulty: 'olymp',
+                    hint: 'sin(π/2 + α) = cosα;  cos(π - α) = -cosα',
+                    question: 'Найдите значение выражения: 5·sin(π/2 + α) - 2·cos(π - α), если cos(α) = 0.4',
+                    options: ['2.8', '1.2', '-2.8', '2'], correct: 0,
+                    formula: 'sin(π/2 + α) = cosα;  cos(π - α) = -cosα',
+                    explanation: 'По формулам приведения: 5·cosα - 2·(-cosα) = 7·cosα = 7 · 0.4 = 2.8.'
+                })
+            );
+
+            // 23. m1011_logs
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'm1011_logs', topicLabel: 'Математика 10–11 • Логарифмы', difficulty: 'basic',
+                    hint: 'log_a(x) + log_a(y) = log_a(x·y)',
+                    question: 'Вычислите значение выражения: log₆(18) + log₆(2)',
+                    options: ['2', '3', '1', '6'], correct: 0,
+                    formula: 'log_a(b) + log_a(c) = log_a(b · c)',
+                    explanation: 'Сумма логарифмов с одинаковым основанием равна логарифму произведения: log₆(18 · 2) = log₆(36) = 2.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_logs', topicLabel: 'Математика 10–11 • Показательные уравнения', difficulty: 'basic',
+                    hint: 'a^f(x) = a^g(x)  ⇔  f(x) = g(x)',
+                    question: 'Решите уравнение: 3^(2x - 5) = 27',
+                    options: ['4', '1', '7', '2.5'], correct: 0,
+                    formula: '27 = 3³  ⇒  2x - 5 = 3',
+                    explanation: 'Представим 27 как 3³: 2x - 5 = 3  ⇒  2x = 8  ⇒  x = 4.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_logs', topicLabel: 'Математика 10–11 • Основное тождество', difficulty: 'olymp',
+                    hint: 'a^(log_a(b)) = b',
+                    question: 'Вычислите: 7^(2 + log₇(3))',
+                    options: ['147', '42', '21', '52'], correct: 0,
+                    formula: 'a^(m + log_a(b)) = a^m · b',
+                    explanation: 'Используем свойство степеней: 7² · 7^(log₇3) = 49 · 3 = 147.'
+                })
+            );
+
+            // 24. m1011_derivative
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'm1011_derivative', topicLabel: 'Математика 10–11 • Производная', difficulty: 'basic',
+                    hint: 'Угловой коэффициент касательной k = f\'(x₀)',
+                    question: 'Найдите угловой коэффициент касательной, проведенной к графику функции f(x) = 2x² - 5x + 1 в точке с абсциссой x₀ = 3.',
+                    options: ['7', '4', '12', '1'], correct: 0,
+                    formula: 'k = tgα = f\'(x₀)',
+                    explanation: 'Производная f\'(x) = 4x - 5. В точке x₀ = 3 получаем k = f\'(3) = 4·3 - 5 = 7.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_derivative', topicLabel: 'Математика 10–11 • Физический смысл', difficulty: 'basic',
+                    hint: 'v(t) = x\'(t)',
+                    question: 'Материальная точка движется прямолинейно по закону x(t) = t³ - 3t² + 8t (м). Найдите скорость точки в момент времени t = 2 с.',
+                    options: ['8 м/с', '12 м/с', '4 м/с', '16 м/с'], correct: 0,
+                    formula: 'v(t) = x\'(t) = 3t² - 6t + 8',
+                    explanation: 'Скорость — первая производная от координаты: v(t) = 3t² - 6t + 8. При t = 2: v(2) = 3·4 - 6·2 + 8 = 12 - 12 + 8 = 8 м/с.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_derivative', topicLabel: 'Математика 10–11 • Экстремумы', difficulty: 'olymp',
+                    hint: 'В точке максимума f\'(x) меняет знак с + на -',
+                    question: 'Найдите точку максимума функции y = -x² + 6x - 5.',
+                    options: ['3', '-3', '4', '6'], correct: 0,
+                    formula: 'y\' = -2x + 6 = 0',
+                    explanation: 'Находим производную: y\' = -2x + 6. Приравниваем к 0: x = 3. До 3 производная положительна, после 3 — отрицательна, значит x = 3 — точка максимума.'
+                })
+            );
+
+            // 25. m1011_integral
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'm1011_integral', topicLabel: 'Математика 10–11 • Первообразная', difficulty: 'basic',
+                    hint: '∫ x^n dx = x^(n+1) / (n+1) + C',
+                    question: 'Укажите одну из первообразных для функции f(x) = 3x² + 4x.',
+                    options: ['x³ + 2x²', '6x + 4', '3x³ + 4x²', 'x³ + 4x²'], correct: 0,
+                    formula: 'F\'(x) = f(x)',
+                    explanation: 'Проверим дифференцированием: (x³ + 2x²)\' = 3x² + 4x. Всё верно!'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_integral', topicLabel: 'Математика 10–11 • Определенный интеграл', difficulty: 'basic',
+                    hint: '∫[a..b] f(x)dx = F(b) - F(a)',
+                    question: 'Вычислите определенный интеграл: ∫ от 1 до 3 от функции f(x) = 2x dx.',
+                    options: ['8', '9', '6', '4'], correct: 0,
+                    formula: 'F(3) - F(1) = 3² - 1²',
+                    explanation: 'Первообразная для 2x равна x². По формуле Ньютона-Лейбница: 3² - 1² = 9 - 1 = 8.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_integral', topicLabel: 'Математика 10–11 • Площадь криволинейной трапеции', difficulty: 'olymp',
+                    hint: 'S = ∫[0..2] 3x² dx',
+                    question: 'Найдите площадь фигуры, ограниченной графиком функции y = 3x², осью Ox и прямыми x = 0 и x = 2.',
+                    options: ['8', '12', '4', '6'], correct: 0,
+                    formula: 'S = [x³] от 0 до 2 = 2³ - 0³',
+                    explanation: 'Первообразная F(x) = x³. Площадь S = F(2) - F(0) = 2³ - 0 = 8.'
+                })
+            );
+
+            // 26. m1011_stereometry
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'm1011_stereometry', topicLabel: 'Математика 10–11 • Стереометрия', difficulty: 'basic',
+                    hint: 'V_цил = πR²h;  V_кон = (1/3)πR²h',
+                    question: 'Объем цилиндра равен 48 см³. Чему равен объем конуса, имеющего такое же основание и такую же высоту?',
+                    options: ['16 см³', '24 см³', '144 см³', '12 см³'], correct: 0,
+                    formula: 'V_конуса = V_цилиндра / 3',
+                    explanation: 'Объем конуса в 3 раза меньше объема цилиндра с равными основанием и высотой: 48 / 3 = 16 см³.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_stereometry', topicLabel: 'Математика 10–11 • Шар и сфера', difficulty: 'basic',
+                    hint: 'S_сферы = 4πR²;  V_шара = (4/3)πR³',
+                    question: 'Во сколько раз увеличится объем шара, если его радиус увеличить в 3 раза?',
+                    options: ['В 27 раз', 'В 9 раз', 'В 3 раза', 'В 81 раз'], correct: 0,
+                    formula: 'V = (4/3) · π · R³',
+                    explanation: 'Объем шара пропорционален кубу радиуса (R³). При увеличении радиуса в 3 раза объем вырастет в 3³ = 27 раз.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_stereometry', topicLabel: 'Математика 10–11 • Прямоугольный параллелепипед', difficulty: 'olymp',
+                    hint: 'd² = a² + b² + c²',
+                    question: 'Три ребра прямоугольного параллелепипеда, выходящие из одной вершины, равны 2, 3 и 6. Найдите длину диагонали этого параллелепипеда.',
+                    options: ['7', '11', '49', '6.5'], correct: 0,
+                    formula: 'd = √(a² + b² + c²)',
+                    explanation: 'd = √(2² + 3² + 6²) = √(4 + 9 + 36) = √49 = 7.'
+                })
+            );
+
+            // 27. m1011_params
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'm1011_params', topicLabel: 'Математика 10–11 • Параметры', difficulty: 'basic',
+                    hint: 'Квадратное уравнение имеет 1 корень при D = 0',
+                    question: 'При каком положительном значении параметра a уравнение x² - ax + 16 = 0 имеет ровно один корень?',
+                    options: ['8', '4', '16', '2'], correct: 0,
+                    formula: 'D = a² - 4·1·16 = 0',
+                    explanation: 'Дискриминант D = a² - 64 = 0  ⇒  a = ±8. Положительное значение: a = 8.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_params', topicLabel: 'Математика 10–11 • Показательные неравенства', difficulty: 'basic',
+                    hint: 'При основании 0 < a < 1 знак неравенства меняется',
+                    question: 'Решите неравенство: (0.5)^x > 0.25',
+                    options: ['x < 2', 'x > 2', 'x < -2', 'x > 0.5'], correct: 0,
+                    formula: '(0.5)^x > (0.5)²  ⇔  x < 2',
+                    explanation: 'Так как основание 0.5 < 1, функция убывает, поэтому знак неравенства меняется на противоположный: x < 2.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_params', topicLabel: 'Математика 10–11 • Анализ окружности', difficulty: 'olymp',
+                    hint: 'x² + y² = R² — окружность радиуса R',
+                    question: 'Сколько решений имеет система уравнений: x² + y² = 25 и y = 5?',
+                    options: ['1', '2', '0', 'Бесконечно много'], correct: 0,
+                    formula: 'x² + 5² = 25  ⇒  x² = 0  ⇒  x = 0',
+                    explanation: 'Прямая y = 5 касается окружности радиуса 5 в верхней точке (0; 5). Система имеет ровно 1 решение.'
+                })
+            );
+
+            // 28. m1011_prob_adv
+            list.push(
+                () => ({
+                    grade: '10-11', topic: 'm1011_prob_adv', topicLabel: 'Математика 10–11 • Независимые события', difficulty: 'basic',
+                    hint: 'P(A и B) = P(A) · P(B)',
+                    question: 'Стрелок поражает мишень с вероятностью 0.8 при каждом выстреле. Какова вероятность того, что он попадет два раза подряд?',
+                    options: ['0.64', '1.6', '0.16', '0.8'], correct: 0,
+                    formula: 'P = p₁ · p₂ = 0.8 · 0.8',
+                    explanation: 'Выстрелы независимы, поэтому вероятности перемножаются: 0.8 · 0.8 = 0.64.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_prob_adv', topicLabel: 'Математика 10–11 • Противоположное событие', difficulty: 'basic',
+                    hint: 'P(хотя бы 1 раз) = 1 - P(ни разу)',
+                    question: 'Вероятность перегорания лампы в течение года равна 0.1. Какова вероятность того, что из двух независимых ламп хотя бы одна НЕ перегорит?',
+                    options: ['0.99', '0.9', '0.81', '0.19'], correct: 0,
+                    formula: 'P = 1 - (0.1 · 0.1)',
+                    explanation: 'Вероятность того, что обе перегорят: 0.1 · 0.1 = 0.01. Противоположное событие (хотя бы одна цела): 1 - 0.01 = 0.99.'
+                }),
+                () => ({
+                    grade: '10-11', topic: 'm1011_prob_adv', topicLabel: 'Математика 10–11 • Формула полной вероятности', difficulty: 'olymp',
+                    hint: 'P = P(H₁)·P(A|H₁) + P(H₂)·P(A|H₂)',
+                    question: 'Первый автомат производит 60% деталей (брак 2%), второй — 40% деталей (брак 5%). Найдите вероятность того, что наугад взятая деталь окажется бракованной.',
+                    options: ['0.032', '0.07', '0.035', '0.024'], correct: 0,
+                    formula: 'P(Б) = 0.6·0.02 + 0.4·0.05',
+                    explanation: 'По формуле полной вероятности: P = 0.6 · 0.02 + 0.4 · 0.05 = 0.012 + 0.020 = 0.032.'
+                })
+            );
+
+            return list;
+        }
+
+        /**
+         * СИНТЕЗАТОР ЗВУКОВЫХ ЭФФЕКТОВ (Tone.js)
+         */
+        class SoundEngine {
+            constructor() {
+                this.enabled = true;
+                this.initialized = false;
+            }
+
+            async init() {
+                if (this.initialized) return;
+                try {
+                    await Tone.start();
+                    this.synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                    this.synth.volume.value = -8;
+                    this.initialized = true;
+                } catch (e) {
+                    console.warn('Ожидание клика для запуска звука');
+                }
+            }
+
+            playLaser() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.synth) return;
+                const now = Tone.now();
+                this.synth.triggerAttackRelease('C6', '16n', now);
+                this.synth.triggerAttackRelease('G5', '16n', now + 0.05);
+                this.synth.triggerAttackRelease('E6', '8n', now + 0.1);
+            }
+
+            playDamage() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.synth) return;
+                const now = Tone.now();
+                this.synth.triggerAttackRelease('F2', '8n', now);
+                this.synth.triggerAttackRelease('E2', '8n', now + 0.08);
+            }
+
+            playVictory() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.synth) return;
+                const now = Tone.now();
+                ['C5', 'E5', 'G5', 'C6'].forEach((note, i) => {
+                    this.synth.triggerAttackRelease(note, '8n', now + i * 0.1);
+                });
+            }
+        }
+
+        /**
+         * ГЛАВНЫЙ КОНТРОЛЛЕР ИГРЫ "ФИЗМАТ АРЕНА"
+         */
+        class PhysMathGame {
+            constructor() {
+                this.sound = new SoundEngine();
+
+                // Сохраняемый прогресс в localStorage
+                this.xp = parseInt(localStorage.getItem('fm_xp') || '0', 10);
+                this.wins = parseInt(localStorage.getItem('fm_wins') || '0', 10);
+                this.masteredTopics = new Set(JSON.parse(localStorage.getItem('fm_mastered') || '[]'));
+
+                // Фильтры меню
+                this.grade = '7-9';       // '7-9' или '10-11'
+                this.difficulty = 'basic'; // 'basic' или 'olymp'
+
+                // Состояние боя
+                this.currentTopic = 'p79_kinematics';
+                this.currentBossInfo = { name: 'БОСС', color: '#00f3ff' };
+                this.playerMaxHp = 100;
+                this.playerHp = 100;
+                this.bossMaxHp = 100;
+                this.bossHp = 100;
+                this.combo = 1.0;
+                this.maxCombo = 1.0;
+                this.correctCount = 0;
+                this.totalAnswered = 0;
+                this.learnedFormulas = new Set();
+
+                // Таймер хода
+                this.turnTimeMax = 35;
+                this.timeLeft = 35;
+                this.timerInterval = null;
+                this.isTurnActive = false;
+
+                // Задачи
+                this.templates = getQuestionTemplates();
+                this.questionPool = [];
+                this.currentQuestion = null;
+
+                // Canvas визуализация
+                this.canvas = document.getElementById('battle-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.particles = [];
+                this.lasers = [];
+                this.animTime = 0;
+                this.bossShake = 0;
+                this.playerShake = 0;
+
+                this.updateProfileUI();
+                this.renderTopicsMenu();
+                this.initCanvas();
+            }
+
+            initCanvas() {
+                const resize = () => {
+                    if (!this.canvas) return;
+                    const rect = this.canvas.parentElement.getBoundingClientRect();
+                    this.canvas.width = rect.width;
+                    this.canvas.height = rect.height;
+                };
+                window.addEventListener('resize', resize);
+                resize();
+
+                const loop = () => {
+                    this.renderBattleCanvas();
+                    requestAnimationFrame(loop);
+                };
+                requestAnimationFrame(loop);
+            }
+
+            updateProfileUI() {
+                const level = Math.floor(this.xp / 250) + 1;
+                const xpInLevel = this.xp % 250;
+                const ranks = ['Кадет', 'Лаборант', 'Инженер', 'Исследователь', 'Магистр Наук', 'Квантовый Гений'];
+                const rankName = ranks[Math.min(level - 1, ranks.length - 1)];
+
+                document.getElementById('player-level').textContent = level;
+                document.getElementById('player-rank-name').textContent = rankName;
+                document.getElementById('player-xp-bar').style.width = `${(xpInLevel / 250) * 100}%`;
+                document.getElementById('player-wins-count').textContent = this.wins;
+            }
+
+            addXP(amount) {
+                this.xp += amount;
+                localStorage.setItem('fm_xp', this.xp.toString());
+                this.updateProfileUI();
+            }
+
+            toggleSound() {
+                this.sound.enabled = !this.sound.enabled;
+                const icon = document.getElementById('sound-icon');
+                icon.className = this.sound.enabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-slate-500';
+            }
+
+            setGrade(grade) {
+                this.grade = grade;
+                const btn79 = document.getElementById('grade-7-9');
+                const btn1011 = document.getElementById('grade-10-11');
+
+                if (grade === '7-9') {
+                    btn79.className = 'flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25';
+                    btn1011.className = 'flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition text-slate-300 hover:bg-slate-800';
+                } else {
+                    btn1011.className = 'flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg shadow-purple-500/25';
+                    btn79.className = 'flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition text-slate-300 hover:bg-slate-800';
+                }
+
+                document.getElementById('mix-banner-title').textContent = `ФизМат Микс (${grade} классы): Все темы сразу`;
+                document.getElementById('physics-grade-label').textContent = `${grade} классы`;
+                document.getElementById('math-grade-label').textContent = `${grade} классы`;
+
+                this.renderTopicsMenu();
+            }
+
+            setDifficulty(diff) {
+                this.difficulty = diff;
+                const btnBasic = document.getElementById('diff-basic');
+                const btnOlymp = document.getElementById('diff-olymp');
+
+                if (diff === 'basic') {
+                    btnBasic.className = 'flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25';
+                    btnOlymp.className = 'flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition text-slate-300 hover:bg-slate-800';
+                } else {
+                    btnOlymp.className = 'flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition bg-orange-500 text-slate-950 shadow-lg shadow-orange-500/25';
+                    btnBasic.className = 'flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition text-slate-300 hover:bg-slate-800';
+                }
+            }
+
+            // Рендер карточек тем для выбранного класса
+            renderTopicsMenu() {
+                const catalog = TOPICS_CATALOG[this.grade];
+                const physGrid = document.getElementById('physics-topics-grid');
+                const mathGrid = document.getElementById('math-topics-grid');
+
+                const createCardHTML = (item, accentType) => {
+                    const isMastered = this.masteredTopics.has(item.id);
+                    const borderHover = accentType === 'phys' ? 'hover:border-cyan-400' : 'hover:border-purple-400';
+                    const iconBg = accentType === 'phys' ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30' : 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+                    const bossColor = accentType === 'phys' ? 'text-cyan-300' : 'text-purple-300';
+
+                    return `
+                        <div onclick="app.startBattle('${item.id}')" class="cyber-panel rounded-2xl p-4 cursor-pointer ${borderHover} transition group flex flex-col justify-between relative overflow-hidden">
+                            <div>
+                                <div class="flex items-start justify-between gap-2 mb-2.5">
+                                    <div class="w-9 h-9 rounded-xl ${iconBg} border flex items-center justify-center text-base shrink-0">
+                                        <i class="fa-solid ${item.icon}"></i>
+                                    </div>
+                                    ${isMastered ? '<span class="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold"><i class="fa-solid fa-check mr-1"></i>Пройдено</span>' : ''}
+                                </div>
+                                <h4 class="font-bold text-white text-base mb-1 group-hover:text-cyan-300 transition">${item.title}</h4>
+                                <p class="text-xs text-slate-400 leading-relaxed mb-3">${item.desc}</p>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] font-mono-math ${bossColor} pt-2.5 border-t border-slate-800/80">
+                                <span class="truncate pr-1">БОСС: ${item.boss}</span>
+                                <span class="shrink-0 group-hover:translate-x-1 transition-transform">БОЙ <i class="fa-solid fa-chevron-right ml-0.5"></i></span>
+                            </div>
+                        </div>
+                    `;
+                };
+
+                physGrid.innerHTML = catalog.physics.map(t => createCardHTML(t, 'phys')).join('');
+                mathGrid.innerHTML = catalog.math.map(t => createCardHTML(t, 'math')).join('');
+            }
+
+            switchScreen(screenId) {
+                ['screen-menu', 'screen-battle', 'screen-result'].forEach(id => {
+                    document.getElementById(id).classList.add('hidden');
+                });
+                document.getElementById(screenId).classList.remove('hidden');
+            }
+
+            returnToMenu() {
+                clearInterval(this.timerInterval);
+                this.isTurnActive = false;
+                document.getElementById('explanation-modal').classList.add('hidden');
+                document.getElementById('explanation-modal').classList.remove('flex');
+                this.renderTopicsMenu();
+                this.switchScreen('screen-menu');
+            }
+
+            findTopicMeta(topicId) {
+                if (topicId === 'mix') {
+                    return { name: `ОМЕГА-СИНТЕЗ (${this.grade})`, color: '#f43f5e' };
+                }
+                const all = [...TOPICS_CATALOG['7-9'].physics, ...TOPICS_CATALOG['7-9'].math, ...TOPICS_CATALOG['10-11'].physics, ...TOPICS_CATALOG['10-11'].math];
+                const found = all.find(t => t.id === topicId);
+                return found ? { name: found.boss, color: found.color } : { name: 'КИБЕР-СТРАЖ', color: '#00f3ff' };
+            }
+
+            startBattle(topicId) {
+                this.sound.init();
+                this.currentTopic = topicId;
+                this.currentBossInfo = this.findTopicMeta(topicId);
+
+                this.playerMaxHp = 100;
+                this.playerHp = 100;
+                this.bossMaxHp = this.difficulty === 'olymp' ? 125 : 100;
+                if (topicId === 'mix') this.bossMaxHp += 25;
+                this.bossHp = this.bossMaxHp;
+
+                this.combo = 1.0;
+                this.maxCombo = 1.0;
+                this.correctCount = 0;
+                this.totalAnswered = 0;
+                this.learnedFormulas.clear();
+
+                document.getElementById('boss-name-display').innerHTML = `<i class="fa-solid fa-robot mr-1"></i> ${this.currentBossInfo.name}`;
+
+                this.refillQuestionPool();
+                this.switchScreen('screen-battle');
+
+                const rect = this.canvas.parentElement.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+
+                this.updateBattleHUD();
+                this.loadNextQuestion();
+            }
+
+            restartCurrentBattle() {
+                this.startBattle(this.currentTopic);
+            }
+
+            refillQuestionPool() {
+                // Генерируем свежие экземпляры задач из шаблонов
+                const generated = this.templates.map(fn => fn());
+
+                let filtered = generated.filter(q => {
+                    if (this.currentTopic === 'mix') {
+                        return q.grade === this.grade;
+                    }
+                    return q.topic === this.currentTopic;
+                });
+
+                // Если выбран базовый уровень, отдаем приоритет базовым, но при нехватке берем все по теме
+                if (this.difficulty === 'basic') {
+                    const basicOnly = filtered.filter(q => q.difficulty === 'basic');
+                    if (basicOnly.length >= 2) filtered = basicOnly;
+                }
+
+                // Перемешиваем
+                for (let i = filtered.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
+                }
+                this.questionPool = filtered;
+            }
+
+            loadNextQuestion() {
+                if (this.questionPool.length === 0) {
+                    this.refillQuestionPool();
+                }
+
+                this.currentQuestion = this.questionPool.pop();
+                this.isTurnActive = true;
+
+                document.getElementById('question-topic-badge').textContent = this.currentQuestion.topicLabel;
+                document.getElementById('question-formula-hint').textContent = `Подсказка: ${this.currentQuestion.hint}`;
+                document.getElementById('question-text').textContent = this.currentQuestion.question;
+
+                const grid = document.getElementById('options-grid');
+                grid.innerHTML = '';
+
+                const letters = ['A', 'B', 'C', 'D'];
+                this.currentQuestion.options.forEach((optText, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'cyber-btn text-left p-4 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400 flex items-center gap-3 group';
+                    btn.innerHTML = `
+                        <span class="w-8 h-8 rounded-lg bg-slate-800 group-hover:bg-cyan-500 group-hover:text-slate-950 font-mono-math font-bold text-sm flex items-center justify-center text-cyan-400 transition shrink-0">
+                            ${letters[idx]}
+                        </span>
+                        <span class="font-mono-math text-sm sm:text-base text-slate-100 font-semibold">${optText}</span>
+                    `;
+                    btn.onclick = () => this.handleAnswer(idx);
+                    grid.appendChild(btn);
+                });
+
+                this.turnTimeMax = this.difficulty === 'olymp' ? 50 : 35;
+                this.timeLeft = this.turnTimeMax;
+                this.startTurnTimer();
+            }
+
+            startTurnTimer() {
+                clearInterval(this.timerInterval);
+                const timerText = document.getElementById('timer-text');
+                const timerBar = document.getElementById('timer-bar');
+
+                this.timerInterval = setInterval(() => {
+                    if (!this.isTurnActive) return;
+
+                    this.timeLeft -= 0.1;
+                    if (this.timeLeft <= 0) {
+                        this.timeLeft = 0;
+                        clearInterval(this.timerInterval);
+                        this.handleAnswer(-1);
+                    }
+
+                    timerText.textContent = `${this.timeLeft.toFixed(1)}с`;
+                    const pct = (this.timeLeft / this.turnTimeMax) * 100;
+                    timerBar.style.width = `${pct}%`;
+
+                    if (pct < 25) {
+                        timerBar.className = 'timer-bar-fill h-full bg-red-500';
+                        timerText.className = 'font-mono-math font-black text-lg text-red-400 animate-pulse';
+                    } else if (pct < 50) {
+                        timerBar.className = 'timer-bar-fill h-full bg-yellow-400';
+                        timerText.className = 'font-mono-math font-black text-lg text-yellow-400';
+                    } else {
+                        timerBar.className = 'timer-bar-fill h-full bg-cyan-400';
+                        timerText.className = 'font-mono-math font-black text-lg text-cyan-400';
+                    }
+                }, 100);
+            }
+
+            handleAnswer(selectedIndex) {
+                if (!this.isTurnActive) return;
+                this.isTurnActive = false;
+                clearInterval(this.timerInterval);
+
+                this.totalAnswered++;
+                this.learnedFormulas.add(`${this.currentQuestion.topicLabel}: ${this.currentQuestion.formula}`);
+
+                const isCorrect = selectedIndex === this.currentQuestion.correct;
+                const isTimeout = selectedIndex === -1;
+
+                if (isCorrect) {
+                    this.correctCount++;
+                    const speedBonus = this.timeLeft > (this.turnTimeMax * 0.6) ? 5 : 0;
+                    const baseDmg = 25;
+                    const totalDmg = Math.round((baseDmg + speedBonus) * this.combo);
+
+                    this.bossHp = Math.max(0, this.bossHp - totalDmg);
+                    this.combo = Math.min(3.0, +(this.combo + 0.5).toFixed(1));
+                    if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+
+                    this.sound.playLaser();
+                    this.triggerLaserAttack(true);
+                    this.showBanner(`УДАР: -${totalDmg} HP!`, 'cyan');
+                    this.showExplanationModal(true, `Плазменный импульс нанес ${totalDmg} урона!`);
+                } else {
+                    const dmgTaken = 25;
+                    this.playerHp = Math.max(0, this.playerHp - dmgTaken);
+                    this.combo = 1.0;
+
+                    this.sound.playDamage();
+                    this.triggerLaserAttack(false);
+                    document.getElementById('app-container').classList.add('shake-effect');
+                    setTimeout(() => document.getElementById('app-container').classList.remove('shake-effect'), 450);
+
+                    const reason = isTimeout ? 'Время вышло! Щит пробит (-25 HP)' : `Ошибка в расчетах! Получено ${dmgTaken} урона`;
+                    this.showBanner(isTimeout ? 'ВРЕМЯ ВЫШЛО!' : 'ОШИБКА РАСЧЕТА!', 'red');
+                    this.showExplanationModal(false, reason);
+                }
+
+                this.updateBattleHUD();
+            }
+
+            updateBattleHUD() {
+                document.getElementById('player-hp-text').textContent = `${this.playerHp} / ${this.playerMaxHp}`;
+                document.getElementById('player-hp-bar').style.width = `${(this.playerHp / this.playerMaxHp) * 100}%`;
+
+                document.getElementById('boss-hp-text').textContent = `${this.bossHp} / ${this.bossMaxHp}`;
+                document.getElementById('boss-hp-bar').style.width = `${(this.bossHp / this.bossMaxHp) * 100}%`;
+
+                document.getElementById('combo-display').textContent = `x${this.combo.toFixed(1)}`;
+            }
+
+            showBanner(text, colorType) {
+                const banner = document.getElementById('battle-banner');
+                const bannerText = document.getElementById('battle-banner-text');
+                bannerText.textContent = text;
+                bannerText.className = colorType === 'cyan'
+                    ? 'text-xl sm:text-3xl font-black tracking-wider uppercase px-6 py-2 rounded-xl bg-slate-950/90 border-2 border-cyan-400 text-cyan-300 shadow-2xl'
+                    : 'text-xl sm:text-3xl font-black tracking-wider uppercase px-6 py-2 rounded-xl bg-slate-950/90 border-2 border-red-500 text-red-400 shadow-2xl';
+
+                banner.style.opacity = '1';
+                setTimeout(() => { banner.style.opacity = '0'; }, 1200);
+            }
+
+            showExplanationModal(isSuccess, subtitleText) {
+                const modal = document.getElementById('explanation-modal');
+                const card = document.getElementById('explanation-card');
+                const iconBox = document.getElementById('exp-icon-box');
+                const icon = document.getElementById('exp-icon');
+                const title = document.getElementById('exp-title');
+
+                if (isSuccess) {
+                    card.style.borderColor = 'rgba(0, 243, 255, 0.5)';
+                    iconBox.className = 'w-12 h-12 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-2xl shrink-0';
+                    icon.className = 'fa-solid fa-check';
+                    title.textContent = 'Верное решение!';
+                } else {
+                    card.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                    iconBox.className = 'w-12 h-12 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center text-2xl shrink-0';
+                    icon.className = 'fa-solid fa-triangle-exclamation';
+                    title.textContent = 'Разбор задачи';
+                }
+
+                document.getElementById('exp-subtitle').textContent = subtitleText;
+                document.getElementById('exp-formula').textContent = this.currentQuestion.formula;
+
+                const correctAnswerText = this.currentQuestion.options[this.currentQuestion.correct];
+                document.getElementById('exp-text').innerHTML = `
+                    <div class="mb-1.5 text-emerald-400 font-semibold">Правильный ответ: ${correctAnswerText}</div>
+                    <div>${this.currentQuestion.explanation}</div>
+                `;
+
+                setTimeout(() => {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }, 400);
+            }
+
+            nextTurn() {
+                const modal = document.getElementById('explanation-modal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+
+                if (this.bossHp <= 0) {
+                    this.finishBattle(true);
+                } else if (this.playerHp <= 0) {
+                    this.finishBattle(false);
+                } else {
+                    this.loadNextQuestion();
+                }
+            }
+
+            finishBattle(isVictory) {
+                clearInterval(this.timerInterval);
+                this.switchScreen('screen-result');
+
+                const accuracy = this.totalAnswered > 0 ? Math.round((this.correctCount / this.totalAnswered) * 100) : 0;
+                const mixMultiplier = this.currentTopic === 'mix' ? 1.5 : 1.0;
+                const diffMultiplier = this.difficulty === 'olymp' ? 1.5 : 1.0;
+                const earnedXP = Math.round(((this.correctCount * 30) + (isVictory ? 100 : 20)) * mixMultiplier * diffMultiplier);
+
+                if (isVictory) {
+                    this.wins++;
+                    localStorage.setItem('fm_wins', this.wins.toString());
+                    if (this.currentTopic !== 'mix') {
+                        this.masteredTopics.add(this.currentTopic);
+                        localStorage.setItem('fm_mastered', JSON.stringify(Array.from(this.masteredTopics)));
+                    }
+                    this.sound.playVictory();
+                }
+
+                this.addXP(earnedXP);
+
+                const badge = document.getElementById('result-badge');
+                const title = document.getElementById('result-title');
+                const desc = document.getElementById('result-desc');
+
+                if (isVictory) {
+                    badge.className = 'w-20 h-20 mx-auto rounded-2xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-4xl text-cyan-400 shadow-lg shadow-cyan-500/20';
+                    badge.innerHTML = '<i class="fa-solid fa-trophy"></i>';
+                    title.textContent = 'БОСС ПОВЕРЖЕН!';
+                    desc.textContent = 'Отличный результат! Тема засчитана как пройденная, а формулы добавлены в конспект.';
+                } else {
+                    badge.className = 'w-20 h-20 mx-auto rounded-2xl bg-red-500/20 border border-red-400 flex items-center justify-center text-4xl text-red-400 shadow-lg shadow-red-500/20';
+                    badge.innerHTML = '<i class="fa-solid fa-shield-crack"></i>';
+                    title.textContent = 'ЩИТ ПРОБИТ';
+                    desc.textContent = 'Изучите конспект формул ниже и попробуйте снова — победа уже близко!';
+                }
+
+                document.getElementById('stat-accuracy').textContent = `${accuracy}%`;
+                document.getElementById('stat-combo').textContent = `x${this.maxCombo.toFixed(1)}`;
+                document.getElementById('stat-xp').textContent = `+${earnedXP}`;
+
+                const list = document.getElementById('learned-formulas-list');
+                list.innerHTML = '';
+                this.learnedFormulas.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'p-2 rounded bg-slate-950/80 border border-slate-800/80';
+                    li.textContent = `• ${item}`;
+                    list.appendChild(li);
+                });
+            }
+
+            // ==========================================
+            // ГРАФИКА АРЕНЫ (CANVAS АНИМАЦИЯ И ЛАЗЕРЫ)
+            // ==========================================
+            triggerLaserAttack(fromPlayer) {
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+                const startX = fromPlayer ? w * 0.22 : w * 0.78;
+                const endX = fromPlayer ? w * 0.78 : w * 0.22;
+                const y = h * 0.5;
+                const color = fromPlayer ? '#00f3ff' : '#ff007f';
+
+                this.lasers.push({ startX, endX, y, color, life: 1.0 });
+
+                if (fromPlayer) this.bossShake = 15;
+                else this.playerShake = 15;
+
+                for (let i = 0; i < 28; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 6;
+                    this.particles.push({
+                        x: endX,
+                        y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        color: color,
+                        size: 2 + Math.random() * 3.5,
+                        life: 1.0
+                    });
+                }
+            }
+
+            renderBattleCanvas() {
+                if (!this.ctx || document.getElementById('screen-battle').classList.contains('hidden')) return;
+
+                const ctx = this.ctx;
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+                this.animTime += 0.04;
+
+                ctx.clearRect(0, 0, w, h);
+
+                // Кибер-сетка на фоне
+                ctx.strokeStyle = 'rgba(0, 243, 255, 0.07)';
+                ctx.lineWidth = 1;
+                const gridSize = 32;
+                const offset = (this.animTime * 15) % gridSize;
+
+                for (let x = -offset; x < w; x += gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, h);
+                    ctx.stroke();
+                }
+                for (let y = 0; y < h; y += gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(w, y);
+                    ctx.stroke();
+                }
+
+                // Корабль Игрока (слева)
+                const pShakeX = this.playerShake > 0 ? (Math.random() - 0.5) * 10 : 0;
+                if (this.playerShake > 0) this.playerShake--;
+                const px = w * 0.18 + pShakeX;
+                const py = h * 0.5 + Math.sin(this.animTime) * 6;
+
+                ctx.save();
+                ctx.translate(px, py);
+                ctx.strokeStyle = 'rgba(0, 243, 255, 0.35)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 36, -Math.PI * 0.4, Math.PI * 0.4);
+                ctx.stroke();
+
+                ctx.fillStyle = '#0ea5e9';
+                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.moveTo(26, 0);
+                ctx.lineTo(-18, -18);
+                ctx.lineTo(-10, 0);
+                ctx.lineTo(-18, 18);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+
+                // Кибер-Босс (справа)
+                const bShakeX = this.bossShake > 0 ? (Math.random() - 0.5) * 12 : 0;
+                if (this.bossShake > 0) this.bossShake--;
+                const bx = w * 0.82 + bShakeX;
+                const by = h * 0.5 + Math.cos(this.animTime * 0.8) * 8;
+                const bossColor = this.currentBossInfo.color || '#f43f5e';
+
+                ctx.save();
+                ctx.translate(bx, by);
+                ctx.rotate(this.animTime * 0.5);
+                ctx.strokeStyle = bossColor;
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([12, 8]);
+                ctx.beginPath();
+                ctx.arc(0, 0, 40, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.rotate(-this.animTime);
+                ctx.fillStyle = '#1e1b4b';
+                ctx.strokeStyle = bossColor;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = bossColor;
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const a = (i * Math.PI) / 3;
+                    const rx = Math.cos(a) * 24;
+                    const ry = Math.sin(a) * 24;
+                    if (i === 0) ctx.moveTo(rx, ry);
+                    else ctx.lineTo(rx, ry);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+
+                // Лазерные лучи
+                for (let i = this.lasers.length - 1; i >= 0; i--) {
+                    const l = this.lasers[i];
+                    ctx.save();
+                    ctx.strokeStyle = l.color;
+                    ctx.shadowColor = l.color;
+                    ctx.shadowBlur = 20;
+                    ctx.lineWidth = 8 * l.life;
+                    ctx.globalAlpha = l.life;
+                    ctx.beginPath();
+                    ctx.moveTo(l.startX, l.y);
+                    ctx.lineTo(l.endX, l.y);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 3 * l.life;
+                    ctx.stroke();
+                    ctx.restore();
+
+                    l.life -= 0.06;
+                    if (l.life <= 0) this.lasers.splice(i, 1);
+                }
+
+                // Частицы взрыва
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 0.03;
+
+                    ctx.save();
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = Math.max(0, p.life);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+
+                    if (p.life <= 0) this.particles.splice(i, 1);
+                }
+            }
+        }
+
+        let app;
+        window.onload = () => {
+            app = new PhysMathGame();
+        };
+    </script>
+</body>
+</html>
